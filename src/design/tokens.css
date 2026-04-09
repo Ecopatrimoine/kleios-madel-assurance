@@ -1,10 +1,8 @@
 /* ============================================================
-   MADEL ASSURANCE — Design Tokens
+   MADEL ASSURANCE — Design Tokens v2
    Kleios Madel Assurance · BTS Assurance
    ============================================================ */
-
 :root {
-  /* ── Couleurs principales ── */
   --madel-rose:        #D42B5A;
   --madel-rose-dark:   #A8204A;
   --madel-rose-light:  #FCEEF2;
@@ -12,44 +10,53 @@
 
   --madel-navy:        #1A2B5F;
   --madel-navy-light:  #2E4080;
+  --madel-navy-deep:   #111D40;
 
   --madel-blue:        #4A8FD4;
   --madel-blue-light:  #EBF4FB;
 
-  /* ── Neutres ── */
   --madel-white:       #FFFFFF;
-  --madel-bg:          #F7F5F8;
-  --madel-border:      #DDD8E4;
-  --madel-text:        #4A4A6A;
+  --madel-bg:          #F4F2F7;
+  --madel-bg-card:     #FFFFFF;
+  --madel-border:      #E2DDE9;
+  --madel-border-light:#EDE9F2;
+  --madel-text:        #3A3A55;
   --madel-muted:       #8A86A0;
 
-  /* ── Sémantiques ── */
-  --madel-success:     #2E7D32;
-  --madel-success-bg:  #EAF3DE;
-  --madel-warning:     #7B4F00;
-  --madel-warning-bg:  #FAEEDA;
-  --madel-danger:      #A8204A;
-  --madel-danger-bg:   #FCEBEB;
+  --madel-success:     #1A7C35;
+  --madel-success-bg:  #E8F5EC;
+  --madel-warning:     #92520A;
+  --madel-warning-bg:  #FEF3E2;
+  --madel-danger:      #C41A3A;
+  --madel-danger-bg:   #FDEAEE;
   --madel-info:        #0C447C;
   --madel-info-bg:     #EBF4FB;
 
-  /* ── Typographie ── */
-  --madel-font: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
-  --madel-font-mono: 'Courier New', 'Consolas', monospace;
+  --madel-font:       'DM Sans', 'Segoe UI', system-ui, sans-serif;
+  --madel-font-mono:  'Courier New', 'Consolas', monospace;
 
-  /* ── Rayons ── */
-  --madel-radius-sm:   8px;
-  --madel-radius-md:   12px;
-  --madel-radius-lg:   14px;
-  --madel-radius-xl:   16px;
+  --r-xs:  6px;
+  --r-sm:  8px;
+  --r-md:  12px;
+  --r-lg:  16px;
+  --r-xl:  20px;
+  --r-2xl: 24px;
 
-  /* ── Ombres ── */
-  --madel-shadow-sm:   0 2px 8px rgba(26, 43, 95, 0.08);
-  --madel-shadow-md:   0 4px 18px rgba(26, 43, 95, 0.14);
-  --madel-shadow-lg:   0 8px 40px rgba(26, 43, 95, 0.18);
+  --shadow-xs: 0 1px 3px rgba(26,43,95,.07);
+  --shadow-sm: 0 2px 8px rgba(26,43,95,.09);
+  --shadow-md: 0 4px 20px rgba(26,43,95,.13);
+  --shadow-lg: 0 8px 40px rgba(26,43,95,.18);
+
+  /* Legacy aliases */
+  --madel-radius-sm:  var(--r-sm);
+  --madel-radius-md:  var(--r-md);
+  --madel-radius-lg:  var(--r-lg);
+  --madel-radius-xl:  var(--r-xl);
+  --madel-shadow-sm:  var(--shadow-sm);
+  --madel-shadow-md:  var(--shadow-md);
+  --madel-shadow-lg:  var(--shadow-lg);
 }
 
-/* ── Reset global ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -61,9 +68,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Inputs globaux (dark mode safe) ── */
 input, select, textarea {
   font-family: var(--madel-font);
   color: var(--madel-navy) !important;
   background: var(--madel-white) !important;
 }
+
+/* ── Scrollbar discrète ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--madel-border); border-radius: 10px; }
