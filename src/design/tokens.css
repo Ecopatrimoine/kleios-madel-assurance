@@ -1,0 +1,69 @@
+/* ============================================================
+   MADEL ASSURANCE — Design Tokens
+   Kleios Madel Assurance · BTS Assurance
+   ============================================================ */
+
+:root {
+  /* ── Couleurs principales ── */
+  --madel-rose:        #D42B5A;
+  --madel-rose-dark:   #A8204A;
+  --madel-rose-light:  #FCEEF2;
+  --madel-rose-mid:    #F5C2CF;
+
+  --madel-navy:        #1A2B5F;
+  --madel-navy-light:  #2E4080;
+
+  --madel-blue:        #4A8FD4;
+  --madel-blue-light:  #EBF4FB;
+
+  /* ── Neutres ── */
+  --madel-white:       #FFFFFF;
+  --madel-bg:          #F7F5F8;
+  --madel-border:      #DDD8E4;
+  --madel-text:        #4A4A6A;
+  --madel-muted:       #8A86A0;
+
+  /* ── Sémantiques ── */
+  --madel-success:     #2E7D32;
+  --madel-success-bg:  #EAF3DE;
+  --madel-warning:     #7B4F00;
+  --madel-warning-bg:  #FAEEDA;
+  --madel-danger:      #A8204A;
+  --madel-danger-bg:   #FCEBEB;
+  --madel-info:        #0C447C;
+  --madel-info-bg:     #EBF4FB;
+
+  /* ── Typographie ── */
+  --madel-font: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+  --madel-font-mono: 'Courier New', 'Consolas', monospace;
+
+  /* ── Rayons ── */
+  --madel-radius-sm:   8px;
+  --madel-radius-md:   12px;
+  --madel-radius-lg:   14px;
+  --madel-radius-xl:   16px;
+
+  /* ── Ombres ── */
+  --madel-shadow-sm:   0 2px 8px rgba(26, 43, 95, 0.08);
+  --madel-shadow-md:   0 4px 18px rgba(26, 43, 95, 0.14);
+  --madel-shadow-lg:   0 8px 40px rgba(26, 43, 95, 0.18);
+}
+
+/* ── Reset global ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--madel-font);
+  color: var(--madel-navy);
+  background: var(--madel-bg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Inputs globaux (dark mode safe) ── */
+input, select, textarea {
+  font-family: var(--madel-font);
+  color: var(--madel-navy) !important;
+  background: var(--madel-white) !important;
+}
