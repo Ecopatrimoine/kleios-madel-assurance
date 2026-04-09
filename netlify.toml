@@ -1,0 +1,15 @@
+# ============================================================
+# NETLIFY — Kleios Madel Assurance
+# ============================================================
+[build]
+  command         = "npm run build"
+  publish         = "dist"
+
+[build.environment]
+  NODE_VERSION    = "20"
+
+# Redirige toutes les routes vers index.html (React Router)
+[[redirects]]
+  from    = "/*"
+  to      = "/index.html"
+  status  = 200
