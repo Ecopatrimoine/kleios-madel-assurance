@@ -1,35 +1,49 @@
 // ============================================================
 // APP — Kleios Madel Assurance
 // ============================================================
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./hooks/useAuth";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Header from "./components/layout/Header";
+import LoginPage from "./pages/LoginPage";
 import SimulateurAuto from "./simulateurs/auto/SimulateurAuto";
 import "./design/tokens.css";
 
 function Dashboard() {
   return (
-    <div style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--madel-navy)", marginBottom: 8 }}>
-        Bienvenue sur Madel Assurance
+    <div style={{ padding: 32, maxWidth: 960, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--madel-navy)", marginBottom: 6 }}>
+        Tableau de bord
       </h1>
-      <p style={{ color: "var(--madel-muted)", fontSize: 14, marginBottom: 32 }}>
-        Espace de simulation pédagogique BTS Assurance
+      <p style={{ color: "var(--madel-muted)", fontSize: 13, marginBottom: 28 }}>
+        Bienvenue sur Madel Assurance — Espace Agent
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
         {[
-          { icon: "🚗", label: "Simulateur Auto", desc: "Tarification RC automobile", path: "/simulateurs/auto" },
-          { icon: "🏍️", label: "Simulateur Moto", desc: "Bientôt disponible", path: "#" },
-          { icon: "🏠", label: "Simulateur MRH", desc: "Bientôt disponible", path: "#" },
+          { icon: "👥", label: "Assurés actifs",    valeur: "15" },
+          { icon: "📄", label: "Contrats actifs",   valeur: "10" },
+          { icon: "🚨", label: "Sinistres en cours", valeur: "2" },
+          { icon: "💶", label: "Primes / an",        valeur: "12 370 €" },
+        ].map(kpi => (
+          <div key={kpi.label} style={{ background: "#fff", borderRadius: 14, border: "1px solid var(--madel-border)", padding: "18px 20px" }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>{kpi.icon}</div>
+            <div style={{ fontSize: 11, color: "var(--madel-muted)", marginBottom: 4 }}>{kpi.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "var(--madel-navy)" }}>{kpi.valeur}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        {[
+          { icon: "🚗", label: "Simulateur Auto",   desc: "Tarification RC automobile",    path: "/simulateurs/auto" },
+          { icon: "👥", label: "Liste des Assurés", desc: "Gérer le portefeuille clients", path: "/assures" },
+          { icon: "🚨", label: "Sinistres",         desc: "Suivi des déclarations",         path: "/sinistres" },
         ].map(card => (
-          <a key={card.label} href={card.path} style={{
-            background: "#fff", borderRadius: 14, padding: 20,
-            border: "1px solid var(--madel-border)",
-            textDecoration: "none", color: "var(--madel-navy)",
-            transition: "box-shadow .15s",
-          }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>{card.icon}</div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{card.label}</div>
-            <div style={{ fontSize: 12, color: "var(--madel-muted)", marginTop: 4 }}>{card.desc}</div>
+          <a key={card.label} href={card.path} style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", border: "1px solid var(--madel-border)", textDecoration: "none", color: "var(--madel-navy)", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ fontSize: 28, flexShrink: 0 }}>{card.icon}</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{card.label}</div>
+              <div style={{ fontSize: 11, color: "var(--madel-muted)", marginTop: 2 }}>{card.desc}</div>
+            </div>
           </a>
         ))}
       </div>
@@ -39,10 +53,19 @@ function Dashboard() {
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
-    <div style={{ padding: 32, textAlign: "center", color: "var(--madel-muted)" }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>🚧</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--madel-navy)" }}>{title}</div>
-      <div style={{ marginTop: 8 }}>Module en cours de développement</div>
+    <div style={{ padding: 40, textAlign: "center", color: "var(--madel-muted)" }}>
+      <div style={{ fontSize: 48, marginBottom: 14 }}>🚧</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--madel-navy)", marginBottom: 8 }}>{title}</div>
+      <div>Module en cours de développement</div>
+    </div>
+  );
+}
+
+function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <Header />
+      <main style={{ flex: 1 }}>{children}</main>
     </div>
   );
 }
@@ -50,20 +73,18 @@ function PlaceholderPage({ title }: { title: string }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-        <Header />
-        <main style={{ flex: 1, padding: "0 0 24px" }}>
-          <Routes>
-            <Route path="/"                    element={<Dashboard />} />
-            <Route path="/simulateurs"         element={<Dashboard />} />
-            <Route path="/simulateurs/auto"    element={<SimulateurAuto />} />
-            <Route path="/assures"             element={<PlaceholderPage title="Liste des Assurés" />} />
-            <Route path="/contrats"            element={<PlaceholderPage title="Contrats" />} />
-            <Route path="/sinistres"           element={<PlaceholderPage title="Sinistres" />} />
-            <Route path="/agenda"              element={<PlaceholderPage title="Agenda & Relances" />} />
-          </Routes>
-        </main>
-      </div>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+          <Route path="/simulateurs/auto" element={<ProtectedRoute><AppLayout><SimulateurAuto /></AppLayout></ProtectedRoute>} />
+          <Route path="/assures" element={<ProtectedRoute><AppLayout><PlaceholderPage title="Liste des Assurés" /></AppLayout></ProtectedRoute>} />
+          <Route path="/contrats" element={<ProtectedRoute><AppLayout><PlaceholderPage title="Contrats" /></AppLayout></ProtectedRoute>} />
+          <Route path="/sinistres" element={<ProtectedRoute><AppLayout><PlaceholderPage title="Sinistres" /></AppLayout></ProtectedRoute>} />
+          <Route path="/agenda" element={<ProtectedRoute><AppLayout><PlaceholderPage title="Agenda & Relances" /></AppLayout></ProtectedRoute>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
