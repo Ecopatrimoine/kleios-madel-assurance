@@ -1,29 +1,27 @@
 // ============================================================
-// APP — Kleios Madel Assurance
+// APP — Kleios Madel Assurance v4
 // ============================================================
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Header from "./components/layout/Header";
 import LoginPage from "./pages/LoginPage";
+import ListeAssures from "./pages/ListeAssures";
+import FicheAssure from "./pages/FicheAssure";
 import SimulateurAuto from "./simulateurs/auto/SimulateurAuto";
 import "./design/tokens.css";
 
 function Dashboard() {
   return (
     <div style={{ padding: 32, maxWidth: 960, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--madel-navy)", marginBottom: 6 }}>
-        Tableau de bord
-      </h1>
-      <p style={{ color: "var(--madel-muted)", fontSize: 13, marginBottom: 28 }}>
-        Bienvenue sur Madel Assurance — Espace Agent
-      </p>
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--madel-navy)", marginBottom: 6 }}>Tableau de bord</h1>
+      <p style={{ color: "var(--madel-muted)", fontSize: 13, marginBottom: 28 }}>Bienvenue sur Madel Assurance — Espace Agent</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
         {[
-          { icon: "👥", label: "Assurés actifs",    valeur: "15" },
-          { icon: "📄", label: "Contrats actifs",   valeur: "10" },
-          { icon: "🚨", label: "Sinistres en cours", valeur: "2" },
-          { icon: "💶", label: "Primes / an",        valeur: "12 370 €" },
+          { icon: "👥", label: "Assurés actifs",     valeur: "15" },
+          { icon: "📄", label: "Contrats actifs",    valeur: "10" },
+          { icon: "🚨", label: "Sinistres en cours", valeur: "2"  },
+          { icon: "💶", label: "Primes / an",         valeur: "12 370 €" },
         ].map(kpi => (
           <div key={kpi.label} style={{ background: "#fff", borderRadius: 14, border: "1px solid var(--madel-border)", padding: "18px 20px" }}>
             <div style={{ fontSize: 24, marginBottom: 8 }}>{kpi.icon}</div>
@@ -70,19 +68,24 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function P({ children }: { children: React.ReactNode }) {
+  return <ProtectedRoute><AppLayout>{children}</AppLayout></ProtectedRoute>;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-          <Route path="/simulateurs/auto" element={<ProtectedRoute><AppLayout><SimulateurAuto /></AppLayout></ProtectedRoute>} />
-          <Route path="/assures" element={<ProtectedRoute><AppLayout><PlaceholderPage title="Liste des Assurés" /></AppLayout></ProtectedRoute>} />
-          <Route path="/contrats" element={<ProtectedRoute><AppLayout><PlaceholderPage title="Contrats" /></AppLayout></ProtectedRoute>} />
-          <Route path="/sinistres" element={<ProtectedRoute><AppLayout><PlaceholderPage title="Sinistres" /></AppLayout></ProtectedRoute>} />
-          <Route path="/agenda" element={<ProtectedRoute><AppLayout><PlaceholderPage title="Agenda & Relances" /></AppLayout></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/login"                element={<LoginPage />} />
+          <Route path="/"                     element={<P><Dashboard /></P>} />
+          <Route path="/assures"              element={<P><ListeAssures /></P>} />
+          <Route path="/assures/:id"          element={<P><FicheAssure /></P>} />
+          <Route path="/simulateurs/auto"     element={<P><SimulateurAuto /></P>} />
+          <Route path="/contrats"             element={<P><PlaceholderPage title="Contrats" /></P>} />
+          <Route path="/sinistres"            element={<P><PlaceholderPage title="Sinistres" /></P>} />
+          <Route path="/agenda"               element={<P><PlaceholderPage title="Agenda & Relances" /></P>} />
+          <Route path="*"                     element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
