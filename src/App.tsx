@@ -15,6 +15,8 @@ import SimulateurIJ from "./simulateurs/ij/SimulateurIJ";
 import SimulateurDependance from "./simulateurs/dependance/SimulateurDependance";
 import SimulateurSante from "./simulateurs/sante/SimulateurSante";
 import SimulateurEmprunteur from "./simulateurs/emprunteur/SimulateurEmprunteur";
+import SimulateurRCPro from "./simulateurs/rcpro/SimulateurRCPro";
+import SimulateurMRP from "./simulateurs/mrp/SimulateurMRP";
 import "./design/tokens.css";
 
 function Dashboard() {
@@ -48,6 +50,8 @@ function Dashboard() {
           { icon: "♿", label: "Dépendance",  path: "/simulateurs/dependance" },
           { icon: "💊", label: "Santé",        path: "/simulateurs/sante" },
           { icon: "🏦", label: "Emprunteur",   path: "/simulateurs/emprunteur" },
+          { icon: "⚖️", label: "RC Pro",       path: "/simulateurs/rcpro" },
+          { icon: "🏢", label: "MRP",          path: "/simulateurs/mrp" },
         ].map(card => (
           <a key={card.label} href={card.path} style={{ background: "#fff", borderRadius: 12, padding: "14px 16px", border: "1px solid var(--madel-border)", textDecoration: "none", color: "var(--madel-navy)", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 22, flexShrink: 0 }}>{card.icon}</div>
@@ -101,6 +105,8 @@ export default function App() {
           <Route path="/simulateurs/dependance"      element={<P><SimulateurDependance /></P>} />
           <Route path="/simulateurs/sante"           element={<P><SimulateurSante /></P>} />
           <Route path="/simulateurs/emprunteur"      element={<P><SimulateurEmprunteur /></P>} />
+          <Route path="/simulateurs/rcpro"           element={<P><SimulateurRCPro /></P>} />
+          <Route path="/simulateurs/mrp"             element={<P><SimulateurMRP /></P>} />
           <Route path="/contrats"                    element={<P><PlaceholderPage title="Contrats" /></P>} />
           <Route path="/sinistres"                   element={<P><PlaceholderPage title="Sinistres" /></P>} />
           <Route path="/agenda"                      element={<P><PlaceholderPage title="Agenda" /></P>} />
