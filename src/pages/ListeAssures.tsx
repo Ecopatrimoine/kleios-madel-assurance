@@ -1,350 +1,229 @@
 // ============================================================
-// PAGE LISTE ASSURÉS — Kleios Madel Assurance
+// LISTE ASSURÉS — Refonte complète
+// Kleios Madel Assurance · BTS Assurance
 // ============================================================
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { useAuth } from "../hooks/useAuth";
-import type { DbAssure } from "../lib/supabase";
+import { useClientsStore } from "../store/clientsStore";
+import { STATUT_LABELS, TYPE_LABELS } from "../data/types-clients";
+import type { StatutClient, TypeContrat } from "../data/types-clients";
 
-// ── Utilitaires ──────────────────────────────────────────────
-
-const calculerAge = (dateNaissance: string): number => {
-  const today = new Date();
-  const naissance = new Date(dateNaissance);
-  let age = today.getFullYear() - naissance.getFullYear();
-  if (today < new Date(today.getFullYear(), naissance.getMonth(), naissance.getDate())) age--;
-  return age;
+const STATUTS: StatutClient[] = ["prospect", "client_actif", "vip", "archive"];
+const CSP_LABELS: Record<string, string> = {
+  cadre: "Cadre", non_cadre: "Non-cadre", tns: "TNS", liberal: "Libéral",
+  fonctionnaire: "Fonctionnaire", retraite: "Retraité", etudiant: "Étudiant",
 };
-
-const formatDate = (date: string): string =>
-  new Date(date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-
-const initialesAvatar = (nom: string, prenom: string): string =>
-  `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
-
-const COULEURS_AVATAR = [
-  { bg: "#FCEEF2", text: "#D42B5A" },
-  { bg: "#EBF4FB", text: "#4A8FD4" },
-  { bg: "#EAF3DE", text: "#2E7D32" },
-  { bg: "#FAEEDA", text: "#7B4F00" },
-  { bg: "#EDE8FB", text: "#5B3FBF" },
-];
-
-const couleurAvatar = (nom: string) => {
-  const idx = nom.charCodeAt(0) % COULEURS_AVATAR.length;
-  return COULEURS_AVATAR[idx];
+const selectStyle: React.CSSProperties = {
+  padding: "8px 10px", borderRadius: 8, border: "1.5px solid var(--madel-border)",
+  fontSize: 12, fontFamily: "var(--madel-font)", color: "var(--madel-navy)",
+  background: "#fff", outline: "none", cursor: "pointer", appearance: "none",
 };
-
-// ── Composant principal ──────────────────────────────────────
+const eur = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 export default function ListeAssures() {
-  const { user } = useAuth();
   const navigate = useNavigate();
+  const { clients, pickRandom, reset, clientActif } = useClientsStore();
 
-  const [assures, setAssures]     = useState<DbAssure[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [erreur, setErreur]       = useState<string | null>(null);
-  const [recherche, setRecherche] = useState("");
-  const [tri, setTri]             = useState<{ col: keyof DbAssure; dir: "asc" | "desc" }>({ col: "nom", dir: "asc" });
+  const [recherche, setRecherche]     = useState("");
+  const [filtreStatut, setFiltreStatut] = useState<StatutClient | "tous">("tous");
+  const [filtreCsp, setFiltreCsp]     = useState("tous");
+  const [filtreType, setFiltreType]   = useState<TypeContrat | "tous">("tous");
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
 
-  // Chargement depuis Supabase
-  useEffect(() => {
-    if (!user) return;
-    const charger = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("assures")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("nom", { ascending: true });
+  const stats = useMemo(() => ({
+    total:    clients.length,
+    prospect: clients.filter(c => c.statut === "prospect").length,
+    actif:    clients.filter(c => c.statut === "client_actif").length,
+    vip:      clients.filter(c => c.statut === "vip").length,
+    archive:  clients.filter(c => c.statut === "archive").length,
+    totalPrimes: clients.reduce((s, c) => s + c.contrats.filter(ct => ct.statut === "actif").reduce((a, ct) => a + ct.primeAnnuelle, 0), 0),
+    totalContrats: clients.reduce((s, c) => s + c.contrats.filter(ct => ct.statut === "actif").length, 0),
+  }), [clients]);
 
-      if (error) {
-        setErreur("Impossible de charger les assurés.");
-        console.error(error);
-      } else {
-        setAssures(data ?? []);
+  const clientsFiltres = useMemo(() => {
+    const q = recherche.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return clients.filter(c => {
+      if (filtreStatut !== "tous" && c.statut !== filtreStatut) return false;
+      if (filtreCsp !== "tous" && c.csp !== filtreCsp) return false;
+      if (filtreType !== "tous" && !c.contrats.some(ct => ct.type === filtreType && ct.statut === "actif")) return false;
+      if (q) {
+        const h = `${c.nom} ${c.prenom} ${c.ville} ${c.email} ${c.profession}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (!h.includes(q)) return false;
       }
-      setLoading(false);
-    };
-    charger();
-  }, [user]);
-
-  // Filtrage + tri
-  const assuresFiltres = assures
-    .filter(a => {
-      const q = recherche.toLowerCase();
-      return (
-        a.nom.toLowerCase().includes(q) ||
-        a.prenom.toLowerCase().includes(q) ||
-        a.email?.toLowerCase().includes(q) ||
-        a.ville?.toLowerCase().includes(q) ||
-        a.numero_client?.toLowerCase().includes(q)
-      );
-    })
-    .sort((a, b) => {
-      const va = String(a[tri.col] ?? "").toLowerCase();
-      const vb = String(b[tri.col] ?? "").toLowerCase();
-      return tri.dir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+      return true;
     });
-
-  const toggleTri = (col: keyof DbAssure) => {
-    setTri(prev => prev.col === col
-      ? { col, dir: prev.dir === "asc" ? "desc" : "asc" }
-      : { col, dir: "asc" }
-    );
-  };
-
-  const iconeTri = (col: keyof DbAssure) => {
-    if (tri.col !== col) return <span style={{ color: "var(--madel-border)", marginLeft: 4 }}>↕</span>;
-    return <span style={{ color: "var(--madel-rose)", marginLeft: 4 }}>{tri.dir === "asc" ? "↑" : "↓"}</span>;
-  };
-
-  // ── Render ─────────────────────────────────────────────────
+  }, [clients, recherche, filtreStatut, filtreCsp, filtreType]);
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ fontFamily: "var(--madel-font)", color: "var(--madel-navy)", maxWidth: 1200, margin: "0 auto", padding: "24px 20px 40px" }}>
 
-      {/* En-tête */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--madel-navy)", margin: 0 }}>
-            Assurés
-          </h1>
-          <p style={{ fontSize: 12, color: "var(--madel-muted)", marginTop: 3 }}>
-            {assures.length} assuré{assures.length > 1 ? "s" : ""} dans le portefeuille
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>👥 Portefeuille clients</h1>
+          <p style={{ color: "var(--madel-muted)", fontSize: 13, marginTop: 4 }}>
+            {stats.total} clients · {stats.totalContrats} contrats actifs · {eur(stats.totalPrimes)}/an
           </p>
         </div>
-        <button
-          onClick={() => navigate("/assures/nouveau")}
-          style={{
-            display: "flex", alignItems: "center", gap: 8,
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <button onClick={() => { const c = pickRandom(); navigate(`/assures/${c.id}`); }} style={{
+            padding: "10px 18px", borderRadius: 10, border: "none",
             background: "var(--madel-rose)", color: "#fff",
-            border: "none", borderRadius: 10, padding: "10px 18px",
-            fontSize: 13, fontWeight: 700, cursor: "pointer",
-            fontFamily: "var(--madel-font)",
-          }}
-        >
-          + Nouvel assuré
-        </button>
+            cursor: "pointer", fontFamily: "var(--madel-font)", fontWeight: 700, fontSize: 13,
+          }}>
+            🎲 Qui suis-je ?
+          </button>
+          {!showConfirmReset ? (
+            <button onClick={() => setShowConfirmReset(true)} style={{
+              padding: "10px 18px", borderRadius: 10, border: "2px solid var(--madel-border)",
+              background: "#fff", color: "var(--madel-muted)",
+              cursor: "pointer", fontFamily: "var(--madel-font)", fontWeight: 600, fontSize: 12,
+            }}>🔄 Reset démo</button>
+          ) : (
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => { reset(); setShowConfirmReset(false); }} style={{
+                padding: "10px 14px", borderRadius: 10, border: "none",
+                background: "#DC2626", color: "#fff",
+                cursor: "pointer", fontFamily: "var(--madel-font)", fontWeight: 700, fontSize: 12,
+              }}>Confirmer</button>
+              <button onClick={() => setShowConfirmReset(false)} style={{
+                padding: "10px 14px", borderRadius: 10, border: "1.5px solid var(--madel-border)",
+                background: "#fff", color: "var(--madel-navy)",
+                cursor: "pointer", fontFamily: "var(--madel-font)", fontSize: 12,
+              }}>Annuler</button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Barre de recherche */}
-      <div style={{ position: "relative", marginBottom: 16 }}>
-        <span style={{
-          position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
-          fontSize: 16, pointerEvents: "none",
-        }}>🔍</span>
-        <input
-          type="text"
-          placeholder="Rechercher par nom, email, ville, numéro client…"
-          value={recherche}
-          onChange={e => setRecherche(e.target.value)}
-          style={{
-            width: "100%", padding: "11px 14px 11px 38px",
-            borderRadius: 10, border: "1.5px solid var(--madel-border)",
-            fontSize: 13, fontFamily: "var(--madel-font)",
-            color: "var(--madel-navy)", background: "#fff",
-            outline: "none", boxSizing: "border-box",
-          }}
-          onFocus={e => e.target.style.borderColor = "var(--madel-rose)"}
-          onBlur={e => e.target.style.borderColor = "var(--madel-border)"}
-        />
-        {recherche && (
-          <button onClick={() => setRecherche("")} style={{
-            position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
-            border: "none", background: "none", color: "var(--madel-muted)",
-            cursor: "pointer", fontSize: 18, padding: "0 4px",
-          }}>×</button>
+      {/* Bandeau qui suis-je actif */}
+      {clientActif && (
+        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "var(--madel-rose-light)", border: "2px solid var(--madel-rose)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 13, color: "var(--madel-rose-dark)" }}>
+            🎲 <strong>Qui suis-je ?</strong> — Vous jouez le rôle de <strong>{clientActif.prenom} {clientActif.nom}</strong>, {clientActif.profession} à {clientActif.ville}
+          </div>
+          <button onClick={() => navigate(`/assures/${clientActif.id}`)} style={{
+            padding: "6px 14px", borderRadius: 8, border: "none",
+            background: "var(--madel-rose)", color: "#fff",
+            cursor: "pointer", fontFamily: "var(--madel-font)", fontWeight: 700, fontSize: 12,
+          }}>Voir ma fiche →</button>
+        </div>
+      )}
+
+      {/* KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 20 }}>
+        {[
+          { label: "Total", valeur: stats.total, icone: "👥", couleur: "var(--madel-navy)" },
+          { label: "Prospects", valeur: stats.prospect, icone: "🎯", couleur: "#2563EB" },
+          { label: "Actifs", valeur: stats.actif, icone: "✅", couleur: "#16A34A" },
+          { label: "VIP", valeur: stats.vip, icone: "⭐", couleur: "#D97706" },
+          { label: "Archivés", valeur: stats.archive, icone: "📦", couleur: "#6B7280" },
+        ].map(kpi => (
+          <div key={kpi.label} style={{ background: "#fff", borderRadius: 12, border: "1px solid var(--madel-border)", padding: "14px 16px" }}>
+            <div style={{ fontSize: 18, marginBottom: 4 }}>{kpi.icone}</div>
+            <div style={{ fontSize: 11, color: "var(--madel-muted)" }}>{kpi.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: kpi.couleur }}>{kpi.valeur}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtres */}
+      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid var(--madel-border)", padding: "14px 16px", marginBottom: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <input placeholder="🔍 Nom, ville, profession..." value={recherche} onChange={e => setRecherche(e.target.value)}
+          style={{ flex: 2, minWidth: 200, padding: "8px 12px", borderRadius: 8, border: "1.5px solid var(--madel-border)", fontSize: 13, fontFamily: "var(--madel-font)", outline: "none", color: "var(--madel-navy)" }} />
+        <select value={filtreStatut} onChange={e => setFiltreStatut(e.target.value as StatutClient | "tous")} style={selectStyle}>
+          <option value="tous">Tous statuts</option>
+          {STATUTS.map(s => <option key={s} value={s}>{STATUT_LABELS[s].label}</option>)}
+        </select>
+        <select value={filtreCsp} onChange={e => setFiltreCsp(e.target.value)} style={selectStyle}>
+          <option value="tous">Toutes CSP</option>
+          {Object.entries(CSP_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select value={filtreType} onChange={e => setFiltreType(e.target.value as TypeContrat | "tous")} style={selectStyle}>
+          <option value="tous">Tous contrats</option>
+          {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v.icone} {v.label}</option>)}
+        </select>
+        {(recherche || filtreStatut !== "tous" || filtreCsp !== "tous" || filtreType !== "tous") && (
+          <button onClick={() => { setRecherche(""); setFiltreStatut("tous"); setFiltreCsp("tous"); setFiltreType("tous"); }}
+            style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "var(--madel-bg)", color: "var(--madel-muted)", cursor: "pointer", fontFamily: "var(--madel-font)", fontSize: 12 }}>
+            ✕ Effacer
+          </button>
         )}
+        <span style={{ fontSize: 12, color: "var(--madel-muted)", flexShrink: 0 }}>{clientsFiltres.length} résultat{clientsFiltres.length !== 1 ? "s" : ""}</span>
       </div>
-
-      {/* États */}
-      {loading && (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--madel-muted)" }}>
-          <div style={{ fontSize: 32, marginBottom: 10 }}>⏳</div>
-          Chargement des assurés…
-        </div>
-      )}
-
-      {erreur && (
-        <div style={{
-          padding: "12px 16px", borderRadius: 10, marginBottom: 16,
-          background: "var(--madel-danger-bg)", color: "var(--madel-danger)",
-          border: "1px solid var(--madel-rose-mid)", fontSize: 13,
-        }}>
-          ⚠ {erreur}
-        </div>
-      )}
-
-      {!loading && !erreur && assuresFiltres.length === 0 && (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--madel-muted)" }}>
-          <div style={{ fontSize: 32, marginBottom: 10 }}>👤</div>
-          {recherche ? `Aucun résultat pour "${recherche}"` : "Aucun assuré dans le portefeuille"}
-        </div>
-      )}
 
       {/* Tableau */}
-      {!loading && assuresFiltres.length > 0 && (
-        <div style={{
-          background: "#fff", borderRadius: 14,
-          border: "1px solid var(--madel-border)",
-          overflow: "hidden",
-        }}>
-          {/* En-têtes colonnes */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1.5fr 1fr 1.2fr 1fr 80px",
-            padding: "10px 16px",
-            background: "var(--madel-bg)",
-            borderBottom: "1px solid var(--madel-border)",
-          }}>
-            {[
-              { col: "nom" as keyof DbAssure,            label: "Assuré" },
-              { col: "email" as keyof DbAssure,          label: "Contact" },
-              { col: "date_naissance" as keyof DbAssure, label: "Âge" },
-              { col: "ville" as keyof DbAssure,          label: "Ville" },
-              { col: "numero_client" as keyof DbAssure,  label: "N° client" },
-            ].map(({ col, label }) => (
-              <button key={col} onClick={() => toggleTri(col)} style={{
-                border: "none", background: "none", textAlign: "left",
-                fontSize: 10, fontWeight: 700, color: "var(--madel-muted)",
-                textTransform: "uppercase", letterSpacing: ".05em",
-                cursor: "pointer", padding: 0, fontFamily: "var(--madel-font)",
-                display: "flex", alignItems: "center",
-              }}>
-                {label}{iconeTri(col)}
-              </button>
-            ))}
-            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--madel-muted)", textTransform: "uppercase", letterSpacing: ".05em" }}>
-              Actions
-            </div>
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid var(--madel-border)", overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: "var(--madel-navy)", color: "#fff" }}>
+              {["Client", "Situation", "Profession / CSP", "Ville", "Statut", "Contrats actifs", "Primes/an", ""].map(h => (
+                <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontWeight: 700, whiteSpace: "nowrap" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {clientsFiltres.slice(0, 100).map((c, i) => {
+              const contratsActifs = c.contrats.filter(ct => ct.statut === "actif");
+              const primesAn = contratsActifs.reduce((s, ct) => s + ct.primeAnnuelle, 0);
+              const sl = STATUT_LABELS[c.statut];
+              const age = new Date().getFullYear() - new Date(c.dateNaissance).getFullYear();
+              const estActif = clientActif?.id === c.id;
+              const bgBase = estActif ? "#FFF5F7" : i % 2 === 0 ? "#fff" : "#FAFAFA";
+              return (
+                <tr key={c.id} onClick={() => navigate(`/assures/${c.id}`)}
+                  style={{ background: bgBase, borderBottom: "1px solid var(--madel-border)", cursor: "pointer", borderLeft: estActif ? "3px solid var(--madel-rose)" : "3px solid transparent" }}>
+                  <td style={{ padding: "10px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: "50%", background: `hsl(${(c.id.charCodeAt(4) ?? 0) * 17 % 360},50%,85%)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0, color: "var(--madel-navy)" }}>
+                        {c.prenom[0]}{c.nom[0]}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: "var(--madel-navy)" }}>{c.prenom} {c.nom}</div>
+                        <div style={{ fontSize: 10, color: "var(--madel-muted)" }}>{age} ans · {c.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: "10px 14px", fontSize: 11, color: "var(--madel-muted)" }}>
+                    <div>{c.situationFamiliale.charAt(0).toUpperCase() + c.situationFamiliale.slice(1)}</div>
+                    {c.nbEnfants > 0 && <div style={{ fontSize: 10 }}>{c.nbEnfants} enfant{c.nbEnfants > 1 ? "s" : ""}</div>}
+                  </td>
+                  <td style={{ padding: "10px 14px" }}>
+                    <div style={{ fontSize: 11, color: "var(--madel-navy)" }}>{c.profession}</div>
+                    <div style={{ fontSize: 10, color: "var(--madel-muted)" }}>{CSP_LABELS[c.csp]}</div>
+                  </td>
+                  <td style={{ padding: "10px 14px", fontSize: 11, color: "var(--madel-muted)" }}>{c.ville}</td>
+                  <td style={{ padding: "10px 14px" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: sl.bg, color: sl.couleur }}>{sl.label}</span>
+                  </td>
+                  <td style={{ padding: "10px 14px" }}>
+                    {contratsActifs.length === 0
+                      ? <span style={{ fontSize: 11, color: "var(--madel-muted)", fontStyle: "italic" }}>Aucun</span>
+                      : <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+                          {contratsActifs.slice(0, 5).map(ct => <span key={ct.id} title={TYPE_LABELS[ct.type].label} style={{ fontSize: 16 }}>{TYPE_LABELS[ct.type].icone}</span>)}
+                          {contratsActifs.length > 5 && <span style={{ fontSize: 10, color: "var(--madel-muted)", alignSelf: "center" }}>+{contratsActifs.length - 5}</span>}
+                        </div>}
+                  </td>
+                  <td style={{ padding: "10px 14px", fontFamily: "monospace", fontWeight: 700, color: "var(--madel-navy)" }}>{primesAn > 0 ? eur(primesAn) : "—"}</td>
+                  <td style={{ padding: "10px 14px", color: "var(--madel-muted)", fontSize: 18 }}>›</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {clientsFiltres.length > 100 && (
+          <div style={{ padding: "12px", textAlign: "center", fontSize: 12, color: "var(--madel-muted)", background: "var(--madel-bg)", borderTop: "1px solid var(--madel-border)" }}>
+            100 premiers résultats affichés — affinez la recherche
           </div>
-
-          {/* Lignes */}
-          {assuresFiltres.map((assure, idx) => {
-            const couleur = couleurAvatar(assure.nom);
-            return (
-              <div
-                key={assure.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "2fr 1.5fr 1fr 1.2fr 1fr 80px",
-                  padding: "12px 16px",
-                  borderBottom: idx < assuresFiltres.length - 1 ? "1px solid var(--madel-border)" : "none",
-                  alignItems: "center",
-                  cursor: "pointer",
-                  transition: "background .12s",
-                }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--madel-bg)"}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "#fff"}
-                onClick={() => navigate(`/assures/${assure.id}`)}
-              >
-                {/* Nom + avatar */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: couleur.bg, color: couleur.text,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 13, fontWeight: 700,
-                  }}>
-                    {initialesAvatar(assure.nom, assure.prenom)}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--madel-navy)" }}>
-                      {assure.prenom} {assure.nom}
-                    </div>
-                    <div style={{ fontSize: 10, color: "var(--madel-muted)", marginTop: 1 }}>
-                      Assuré depuis {new Date(assure.created_at).getFullYear()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Email + téléphone */}
-                <div>
-                  <div style={{ fontSize: 12, color: "var(--madel-text)" }}>{assure.email}</div>
-                  <div style={{ fontSize: 11, color: "var(--madel-muted)", marginTop: 1 }}>{assure.telephone}</div>
-                </div>
-
-                {/* Âge */}
-                <div style={{ fontSize: 12, color: "var(--madel-text)" }}>
-                  {assure.date_naissance
-                    ? `${calculerAge(assure.date_naissance)} ans`
-                    : "—"
-                  }
-                  {assure.date_naissance && (
-                    <div style={{ fontSize: 10, color: "var(--madel-muted)", marginTop: 1 }}>
-                      {formatDate(assure.date_naissance)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Ville */}
-                <div style={{ fontSize: 12, color: "var(--madel-text)" }}>
-                  {assure.ville || "—"}
-                  {assure.code_postal && (
-                    <div style={{ fontSize: 10, color: "var(--madel-muted)", marginTop: 1 }}>
-                      {assure.code_postal}
-                    </div>
-                  )}
-                </div>
-
-                {/* Numéro client */}
-                <div style={{
-                  display: "inline-flex", alignItems: "center",
-                  background: "var(--madel-bg)", color: "var(--madel-navy)",
-                  borderRadius: 6, padding: "3px 8px",
-                  fontSize: 11, fontWeight: 600, fontFamily: "monospace",
-                  border: "1px solid var(--madel-border)",
-                }}>
-                  {assure.numero_client}
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: "flex", gap: 6 }} onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={() => navigate(`/assures/${assure.id}`)}
-                    title="Voir la fiche"
-                    style={{
-                      width: 30, height: 30, borderRadius: 7,
-                      border: "1px solid var(--madel-border)", background: "#fff",
-                      cursor: "pointer", fontSize: 14,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >👁</button>
-                  <button
-                    onClick={() => navigate(`/simulateurs/auto?assure=${assure.id}`)}
-                    title="Simuler un contrat"
-                    style={{
-                      width: 30, height: 30, borderRadius: 7,
-                      border: "1px solid var(--madel-border)", background: "#fff",
-                      cursor: "pointer", fontSize: 14,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >🚗</button>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Footer */}
-          <div style={{
-            padding: "10px 16px",
-            background: "var(--madel-bg)",
-            borderTop: "1px solid var(--madel-border)",
-            fontSize: 11, color: "var(--madel-muted)",
-            display: "flex", justifyContent: "space-between",
-          }}>
-            <span>
-              {assuresFiltres.length === assures.length
-                ? `${assures.length} assuré${assures.length > 1 ? "s" : ""}`
-                : `${assuresFiltres.length} résultat${assuresFiltres.length > 1 ? "s" : ""} sur ${assures.length}`
-              }
-            </span>
-            <span>Cliquez sur une ligne pour ouvrir la fiche</span>
+        )}
+        {clientsFiltres.length === 0 && (
+          <div style={{ padding: "48px", textAlign: "center", color: "var(--madel-muted)" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "var(--madel-navy)" }}>Aucun client trouvé</div>
+            <div>Modifiez vos filtres</div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
