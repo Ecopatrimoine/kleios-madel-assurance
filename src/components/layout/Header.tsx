@@ -1,19 +1,30 @@
 // ============================================================
 // HEADER — Madel Assurance
 // ============================================================
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 
 const NAV_ITEMS = [
-  { path: "/",              label: "Dashboard",    icon: "📊" },
-  { path: "/simulateurs",   label: "Simulateurs",  icon: "🧮" },
-  { path: "/assures",       label: "Assurés",      icon: "👥" },
-  { path: "/contrats",      label: "Contrats",     icon: "📄" },
-  { path: "/sinistres",     label: "Sinistres",    icon: "🚨" },
-  { path: "/agenda",        label: "Agenda",       icon: "📅" },
+  { path: "/",            label: "Dashboard",  icon: "📊" },
+  { path: "/simulateurs/auto", label: "Simulateurs", icon: "🧮" },
+  { path: "/assures",     label: "Assurés",    icon: "👥" },
+  { path: "/contrats",    label: "Contrats",   icon: "📄" },
+  { path: "/sinistres",   label: "Sinistres",  icon: "🚨" },
+  { path: "/agenda",      label: "Agenda",     icon: "📅" },
 ];
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
+  // Affiche juste la partie avant le @ pour rester compact
+  const emailCourt = user?.email?.split("@")[0] ?? "Agent";
 
   return (
     <header style={{
@@ -30,8 +41,7 @@ export default function Header() {
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
-          background: "var(--madel-rose)",
-          borderRadius: 10,
+          background: "var(--madel-rose)", borderRadius: 10,
           width: 36, height: 36,
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 18, flexShrink: 0,
@@ -48,47 +58,64 @@ export default function Header() {
 
       {/* Navigation */}
       <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        {NAV_ITEMS.map(item => (
-          <Link
-            key={item.path}
-            to={item.path}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 12px",
-              borderRadius: "var(--madel-radius-sm)",
-              textDecoration: "none",
-              fontSize: 12,
-              fontWeight: location.pathname === item.path ? 700 : 400,
-              color: location.pathname === item.path ? "#fff" : "rgba(255,255,255,.6)",
-              background: location.pathname === item.path
-                ? "rgba(255,255,255,.15)"
-                : "transparent",
+        {NAV_ITEMS.map(item => {
+          const actif = location.pathname === item.path ||
+            (item.path !== "/" && location.pathname.startsWith(item.path));
+          return (
+            <Link key={item.path} to={item.path} style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "6px 12px", borderRadius: "var(--madel-radius-sm)",
+              textDecoration: "none", fontSize: 12,
+              fontWeight: actif ? 700 : 400,
+              color: actif ? "#fff" : "rgba(255,255,255,.6)",
+              background: actif ? "rgba(255,255,255,.15)" : "transparent",
               transition: "all .15s",
-            }}
-          >
-            <span style={{ fontSize: 14 }}>{item.icon}</span>
-            {item.label}
-          </Link>
-        ))}
+            }}>
+              <span style={{ fontSize: 14 }}>{item.icon}</span>
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
-      {/* Badge utilisateur */}
-      <div style={{
-        background: "rgba(255,255,255,.12)",
-        border: "1px solid rgba(255,255,255,.2)",
-        borderRadius: 20,
-        padding: "5px 12px",
-        color: "rgba(255,255,255,.8)",
-        fontSize: 11,
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-      }}>
-        <span>🎓</span>
-        <span>BTS Assurance · Élève</span>
+      {/* Utilisateur + déconnexion */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          background: "rgba(255,255,255,.12)",
+          border: "1px solid rgba(255,255,255,.2)",
+          borderRadius: 20, padding: "5px 12px",
+          color: "rgba(255,255,255,.8)", fontSize: 11,
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <span>🎓</span>
+          <span>{emailCourt}</span>
+        </div>
+        <button
+          onClick={handleSignOut}
+          title="Se déconnecter"
+          style={{
+            background: "rgba(212,43,90,.25)",
+            border: "1px solid rgba(212,43,90,.4)",
+            borderRadius: 20, padding: "5px 12px",
+            color: "var(--madel-rose-mid)", fontSize: 11,
+            cursor: "pointer", fontFamily: "var(--madel-font)",
+            display: "flex", alignItems: "center", gap: 5,
+            transition: "all .15s",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = "rgba(212,43,90,.45)";
+            e.currentTarget.style.color = "#fff";
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = "rgba(212,43,90,.25)";
+            e.currentTarget.style.color = "var(--madel-rose-mid)";
+          }}
+        >
+          <span>⏏</span>
+          <span>Déconnexion</span>
+        </button>
       </div>
     </header>
   );
 }
+

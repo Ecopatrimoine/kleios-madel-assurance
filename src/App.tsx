@@ -1,6 +1,3 @@
-// ============================================================
-// APP — Kleios Madel Assurance v4
-// ============================================================
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -9,6 +6,8 @@ import LoginPage from "./pages/LoginPage";
 import ListeAssures from "./pages/ListeAssures";
 import FicheAssure from "./pages/FicheAssure";
 import SimulateurAuto from "./simulateurs/auto/SimulateurAuto";
+import SimulateurMoto from "./simulateurs/moto/SimulateurMoto";
+import SimulateurMRH from "./simulateurs/mrh/SimulateurMRH";
 import "./design/tokens.css";
 
 function Dashboard() {
@@ -30,14 +29,15 @@ function Dashboard() {
           </div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
         {[
-          { icon: "🚗", label: "Simulateur Auto",   desc: "Tarification RC automobile",    path: "/simulateurs/auto" },
-          { icon: "👥", label: "Liste des Assurés", desc: "Gérer le portefeuille clients", path: "/assures" },
-          { icon: "🚨", label: "Sinistres",         desc: "Suivi des déclarations",         path: "/sinistres" },
+          { icon: "🚗", label: "Simulateur Auto", desc: "Tarification RC auto",    path: "/simulateurs/auto" },
+          { icon: "🏍️", label: "Simulateur Moto", desc: "Tarification moto",       path: "/simulateurs/moto" },
+          { icon: "🏠", label: "Simulateur MRH",  desc: "Multirisque habitation",  path: "/simulateurs/mrh"  },
+          { icon: "👥", label: "Assurés",         desc: "Portefeuille clients",     path: "/assures" },
         ].map(card => (
-          <a key={card.label} href={card.path} style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", border: "1px solid var(--madel-border)", textDecoration: "none", color: "var(--madel-navy)", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ fontSize: 28, flexShrink: 0 }}>{card.icon}</div>
+          <a key={card.label} href={card.path} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1px solid var(--madel-border)", textDecoration: "none", color: "var(--madel-navy)", display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ fontSize: 26, flexShrink: 0 }}>{card.icon}</div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 13 }}>{card.label}</div>
               <div style={{ fontSize: 11, color: "var(--madel-muted)", marginTop: 2 }}>{card.desc}</div>
@@ -77,15 +77,17 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login"                element={<LoginPage />} />
-          <Route path="/"                     element={<P><Dashboard /></P>} />
-          <Route path="/assures"              element={<P><ListeAssures /></P>} />
-          <Route path="/assures/:id"          element={<P><FicheAssure /></P>} />
-          <Route path="/simulateurs/auto"     element={<P><SimulateurAuto /></P>} />
-          <Route path="/contrats"             element={<P><PlaceholderPage title="Contrats" /></P>} />
-          <Route path="/sinistres"            element={<P><PlaceholderPage title="Sinistres" /></P>} />
-          <Route path="/agenda"               element={<P><PlaceholderPage title="Agenda & Relances" /></P>} />
-          <Route path="*"                     element={<Navigate to="/" replace />} />
+          <Route path="/login"              element={<LoginPage />} />
+          <Route path="/"                   element={<P><Dashboard /></P>} />
+          <Route path="/assures"            element={<P><ListeAssures /></P>} />
+          <Route path="/assures/:id"        element={<P><FicheAssure /></P>} />
+          <Route path="/simulateurs/auto"   element={<P><SimulateurAuto /></P>} />
+          <Route path="/simulateurs/moto"   element={<P><SimulateurMoto /></P>} />
+          <Route path="/simulateurs/mrh"    element={<P><SimulateurMRH /></P>} />
+          <Route path="/contrats"           element={<P><PlaceholderPage title="Contrats" /></P>} />
+          <Route path="/sinistres"          element={<P><PlaceholderPage title="Sinistres" /></P>} />
+          <Route path="/agenda"             element={<P><PlaceholderPage title="Agenda & Relances" /></P>} />
+          <Route path="*"                   element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
