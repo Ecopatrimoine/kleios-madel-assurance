@@ -8,6 +8,7 @@ import FicheAssure from "./pages/FicheAssure";
 import SimulateurAuto from "./simulateurs/auto/SimulateurAuto";
 import SimulateurMoto from "./simulateurs/moto/SimulateurMoto";
 import SimulateurMRH from "./simulateurs/mrh/SimulateurMRH";
+import SimulateurGAV from "./simulateurs/gav/SimulateurGAV";
 import "./design/tokens.css";
 
 function Dashboard() {
@@ -34,7 +35,7 @@ function Dashboard() {
           { icon: "🚗", label: "Simulateur Auto", desc: "Tarification RC auto",    path: "/simulateurs/auto" },
           { icon: "🏍️", label: "Simulateur Moto", desc: "Tarification moto",       path: "/simulateurs/moto" },
           { icon: "🏠", label: "Simulateur MRH",  desc: "Multirisque habitation",  path: "/simulateurs/mrh"  },
-          { icon: "👥", label: "Assurés",         desc: "Portefeuille clients",     path: "/assures" },
+          { icon: "🛡️", label: "Simulateur GAV",  desc: "Accidents de la vie",     path: "/simulateurs/gav"  },
         ].map(card => (
           <a key={card.label} href={card.path} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1px solid var(--madel-border)", textDecoration: "none", color: "var(--madel-navy)", display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ fontSize: 26, flexShrink: 0 }}>{card.icon}</div>
@@ -84,6 +85,7 @@ export default function App() {
           <Route path="/simulateurs/auto"   element={<P><SimulateurAuto /></P>} />
           <Route path="/simulateurs/moto"   element={<P><SimulateurMoto /></P>} />
           <Route path="/simulateurs/mrh"    element={<P><SimulateurMRH /></P>} />
+          <Route path="/simulateurs/gav"    element={<P><SimulateurGAV /></P>} />
           <Route path="/contrats"           element={<P><PlaceholderPage title="Contrats" /></P>} />
           <Route path="/sinistres"          element={<P><PlaceholderPage title="Sinistres" /></P>} />
           <Route path="/agenda"             element={<P><PlaceholderPage title="Agenda & Relances" /></P>} />
