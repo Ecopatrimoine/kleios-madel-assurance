@@ -9,18 +9,9 @@ import { supabase } from "../lib/supabase";
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL ?? "";
 
-interface UserRecord {
-  id: string;
-  email: string;
-  created_at: string;
-  last_sign_in_at: string | null;
-  confirmed_at: string | null;
-}
-
 export default function AdminPage() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<{ email: string } | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Invitation
@@ -28,17 +19,12 @@ export default function AdminPage() {
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  // Liste utilisateurs
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { navigate("/login"); return; }
       const email = data.user.email ?? "";
       setCurrentUser({ email });
-      const admin = ADMIN_EMAIL ? email === ADMIN_EMAIL : true; // si pas configuré, laisse passer pour le dev
-      setIsAdmin(admin);
+      const admin = ADMIN_EMAIL ? email === ADMIN_EMAIL : true;
       if (!admin) { navigate("/"); return; }
       setLoading(false);
     });
