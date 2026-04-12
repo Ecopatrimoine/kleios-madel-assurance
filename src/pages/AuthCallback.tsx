@@ -1,6 +1,7 @@
 // ============================================================
 // AUTH CALLBACK — Acceptation invitation + définition mdp
 // Kleios Madel Assurance · BTS Assurance
+// Fix : gestion flux PKCE (code en query string) + flux legacy (hash)
 // ============================================================
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -18,46 +19,41 @@ export default function AuthCallback() {
   const [email, setEmail]       = useState("");
 
   useEffect(() => {
-    // Supabase place les tokens dans le hash de l'URL
-    const hash = window.location.hash;
-    const params = new URLSearchParams(hash.replace("#", "?"));
-    const type = params.get("type");
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
-    const errorParam = params.get("error");
-    const errorDescription = params.get("error_description");
+    // La route /auth/callback n'est atteinte QUE via un lien d'invitation.
+    // Supabase (detectSessionInUrl: true par défaut) traite les tokens de l'URL
+    // automatiquement AVANT que ce composant se monte.
+    // On utilise onAuthStateChange pour attraper la session au bon moment.
 
-    if (errorParam || errorDescription) {
-      console.error("Auth error:", errorParam, errorDescription);
-      setStep("expired");
-      return;
-    }
-
-    if (!accessToken) {
-      // Peut-être déjà connecté, rediriger vers /
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) navigate("/");
-        else setStep("error");
-      });
-      return;
-    }
-
-    // Établir la session avec les tokens reçus
-    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken ?? "" })
-      .then(({ data, error }) => {
-        if (error || !data.session) {
-          setStep("expired");
-          return;
-        }
+    // Vérifier d'abord si la session est déjà établie (traitement synchrone)
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
         setEmail(data.session.user?.email ?? "");
-        if (type === "invite" || type === "recovery" || type === "signup") {
-          setStep("set_password");
-        } else {
-          // Connexion directe (magic link, etc.)
-          navigate("/");
-        }
-      });
-  }, [navigate]);
+        setStep("set_password");
+      }
+    });
+
+    // Écouter aussi l'établissement de session (traitement asynchrone)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        setEmail(session.user?.email ?? "");
+        setStep("set_password");
+      } else if (event === "USER_UPDATED") {
+        // Le mot de passe a été défini → redirection gérée par handleSetPassword
+      } else if (event === "SIGNED_OUT") {
+        setStep("error");
+      }
+    });
+
+    // Timeout de sécurité : si après 5s on n'a toujours rien, erreur
+    const timeout = setTimeout(() => {
+      setStep(prev => prev === "loading" ? "error" : prev);
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, []);
 
   const handleSetPassword = async () => {
     setError("");
