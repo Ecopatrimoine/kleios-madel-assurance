@@ -3,6 +3,7 @@
 // Kleios Madel Assurance · BTS Assurance
 // ============================================================
 import { useState } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Types ─────────────────────────────────────────────────────
 type OngletProduit = "deces" | "obseques";
@@ -70,6 +71,8 @@ export default function SimulateurDecesScolaire() {
   const [ageObs, setAgeObs]               = useState(60);
   const [capitalObs, setCapitalObs]       = useState<NiveauObseques>(5000);
   const [prestationNature, setPrestationNature] = useState(true);
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("deces");
 
   // ── Calculs Décès ──────────────────────────────────────────
   const tauxBase   = getTauxDeces(age);
@@ -383,6 +386,15 @@ export default function SimulateurDecesScolaire() {
           </div>
         </div>
       )}
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={primeTTCDeces}
+        onSouscrire={() => souscrire(primeTTCDeces)}
+      />
     </div>
   );
 }

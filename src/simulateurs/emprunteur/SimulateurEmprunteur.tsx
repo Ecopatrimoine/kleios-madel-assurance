@@ -4,6 +4,7 @@
 // TAEA, quotité, délégation, tableau d'amortissement
 // ============================================================
 import { useState, useMemo } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Types ─────────────────────────────────────────────────────
 type Situation  = "seul" | "couple";
@@ -83,6 +84,8 @@ export default function SimulateurEmprunteur() {
 
   // Onglet
   const [onglet, setOnglet]         = useState<"profil" | "detail" | "amortissement" | "delegation">("profil");
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("emprunteur");
 
   // ── Calculs ──────────────────────────────────────────────────
   const calculs = useMemo(() => {
@@ -645,6 +648,15 @@ export default function SimulateurEmprunteur() {
           </div>
         </div>
       )}
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={Math.round(calculs.primeAssTotale * 12)}
+        onSouscrire={() => souscrire(Math.round(calculs.primeAssTotale * 12))}
+      />
     </div>
   );
 }

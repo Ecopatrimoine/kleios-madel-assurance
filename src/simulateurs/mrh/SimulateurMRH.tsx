@@ -13,6 +13,7 @@ import type {
 } from "./types";
 import { calculerPrimeMRH } from "./calcul";
 import { GARANTIES_OPTIONS_MRH, TARIF_OPTIONS_MRH } from "./tables/coefficients";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Valeurs par défaut ────────────────────────────────────────
 const defaultInput = (occupation: TypeOccupation): SimulateurMRHInput => ({
@@ -146,6 +147,8 @@ export default function SimulateurMRH() {
 
   // Géorisques
   const [risqueGeo, setRisqueGeo] = useState<RisqueGeo | null>(null);
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("mrh");
 
   // Chargement assuré depuis URL
   useEffect(() => {
@@ -563,6 +566,15 @@ export default function SimulateurMRH() {
       ) : (
         <ResultatsMRH resultat={resultat} onglet={onglet} setOnglet={setOnglet} />
       )}
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={resultat?.primeAnnuelle ?? null}
+        onSouscrire={() => souscrire(resultat!.primeAnnuelle)}
+      />
     </div>
   );
 }

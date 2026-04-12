@@ -6,6 +6,7 @@
 // Décret n°2025-160 du 20 février 2025 (plafond 1,4 SMIC)
 // ============================================================
 import { useState } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Constantes officielles 2026 ───────────────────────────────
 const REFERENTIELS = {
@@ -184,10 +185,12 @@ const calculerTarifPrevoyance = (
   franchise: FranchisePrevoyance,
   age: number
 ): number => {
-  const baseAge = age < 35 ? 1.0 : age < 45 ? 1.2 : age < 55 ? 1.5 : 2.0;
-  const baseFranchise: Record<number, number> = { 30: 1.4, 60: 1.0, 90: 0.75, 180: 0.5 };
-  const baseRegime = regime === "cipav" ? 1.3 : regime === "tns" ? 1.2 : regime === "micro" ? 1.25 : 1.0;
-  const tarifBase = ijSouhaitee * 365 * 0.025;
+  // Barème actualisé 2025 — sources : April, Malakoff Humanis, SwissLife
+  // Profil référence : salarié 38 ans, IJ 80€/j, franchise 90j → ~420€/an TTC
+  const baseAge = age < 35 ? 0.90 : age < 45 ? 1.00 : age < 55 ? 1.25 : 1.65;
+  const baseFranchise: Record<number, number> = { 30: 1.45, 60: 1.10, 90: 0.78, 180: 0.52 };
+  const baseRegime = regime === "cipav" ? 1.25 : regime === "tns" ? 1.18 : regime === "micro" ? 1.22 : 1.00;
+  const tarifBase = ijSouhaitee * 365 * 0.016;  // facteur marché 2025 (anciennement 0.025)
   return Math.round(tarifBase * baseAge * (baseFranchise[franchise] ?? 1) * baseRegime * 12) / 12;
 };
 
@@ -218,6 +221,8 @@ export default function SimulateurIJ() {
   const [age, setAge]                   = useState(38);
   const [franchise, setFranchise]       = useState<FranchisePrevoyance>(90);
   const [ijSouhaitee, setIjSouhaitee]   = useState(80);
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("ij");
 
   // ── Calculs ──────────────────────────────────────────────────
   const calc = (() => {
@@ -860,6 +865,15 @@ export default function SimulateurIJ() {
         <span>IJ max salarié : 41,95 €/j (Décret 2025-160)</span>
         <span>IJ max TNS : 65,84 €/j (PASS/730)</span>
       </div>
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={tarifTTC}
+        onSouscrire={() => souscrire(tarifTTC)}
+      />
     </div>
   );
 }

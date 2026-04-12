@@ -12,6 +12,7 @@ import { calculerPrimeMoto } from "./calcul";
 import { useRecherchePlaqueMoto } from "./useRecherchePlaqueMoto";
 import ChampPlaqueMoto from "./ChampPlaqueMoto";
 import type { MotoVehiculeDB } from "./tables/motos-db";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Valeurs par défaut ───────────────────────────────────────
 const ANNEE = new Date().getFullYear();
@@ -50,6 +51,8 @@ export default function SimulateurMoto() {
   const [bmErreur, setBmErreur]     = useState<string | null>(null);
   const [resultat, setResultat]     = useState<ResultatSimulateurMoto | null>(null);
   const [onglet, setOnglet]         = useState<"resume" | "detail" | "garanties">("resume");
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("moto");
 
   // Détection automatique contrat auto
   const handleAutoDetectee = useCallback((detected: boolean) => {
@@ -414,6 +417,15 @@ export default function SimulateurMoto() {
         <Resultats resultat={resultat} onglet={onglet} setOnglet={setOnglet} />
         
       )}
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={resultat?.primeAnnuelle ?? null}
+        onSouscrire={() => souscrire(resultat!.primeAnnuelle)}
+      />
     </div>
   );
 }

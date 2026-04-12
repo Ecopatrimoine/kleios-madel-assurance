@@ -1,6 +1,10 @@
 // ============================================================
-// FICHE ASSURÉ v2 — Profil d'abord + 3 actions contrat
-// Kleios Madel Assurance · BTS Assurance
+// FICHE ASSURÉ — Kleios Madel Assurance · BTS Assurance
+// Changements :
+//   - Bouton "Modifier" supprimé
+//   - "Remplacer" → navigue vers le simulateur correspondant
+//   - "Nouveau contrat" → sélecteur de type → simulateur
+//   - ModalResilier → règles légales complètes
 // ============================================================
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -8,15 +12,115 @@ import { useClientsStore } from "../store/clientsStore";
 import { TYPE_LABELS, STATUT_LABELS } from "../data/types-clients";
 import type { TypeContrat, ContratDemo } from "../data/types-clients";
 
-const eur = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const eur    = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const eurDec = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
+
 const TYPES: TypeContrat[] = ["auto","moto","mrh","gav","scolaire","deces","ij","dependance","sante","emprunteur","rcpro","mrp"];
+
+const SIMULATEUR_ROUTE: Record<TypeContrat, string> = {
+  auto:        "/simulateurs/auto",
+  moto:        "/simulateurs/moto",
+  mrh:         "/simulateurs/mrh",
+  gav:         "/simulateurs/gav",
+  scolaire:    "/simulateurs/scolaire",
+  deces:       "/simulateurs/deces",
+  ij:          "/simulateurs/ij",
+  dependance:  "/simulateurs/dependance",
+  sante:       "/simulateurs/sante",
+  emprunteur:  "/simulateurs/emprunteur",
+  rcpro:       "/simulateurs/rcpro",
+  mrp:         "/simulateurs/mrp",
+};
+
 const CSP: Record<string,string> = { cadre:"Cadre", non_cadre:"Non-cadre", tns:"TNS", liberal:"Libéral", fonctionnaire:"Fonctionnaire", retraite:"Retraité", etudiant:"Étudiant" };
 const SIT: Record<string,string> = { celibataire:"Célibataire", marie:"Marié(e)", pacse:"Pacsé(e)", divorce:"Divorcé(e)", veuf:"Veuf/Veuve", concubinage:"Concubinage" };
-const inp: React.CSSProperties = { width:"100%", padding:"9px 11px", borderRadius:8, border:"1.5px solid var(--madel-border)", fontSize:12, fontFamily:"var(--madel-font)", color:"var(--madel-navy)", background:"#fff", outline:"none", boxSizing:"border-box" };
-const MOTIFS = ["Vente du véhicule","Déménagement","Changement d'assureur","Décès de l'assuré","Non-paiement des cotisations","Résiliation légale (loi Lemoine)","Autre"];
+
+// ── Règles légales de résiliation ────────────────────────────
+interface RegleResiliation {
+  id:             string;
+  label:          string;
+  icone:          string;
+  description:    string;
+  procedure:      string;
+  delai:          string;
+  types:          TypeContrat[];
+  conditionMois:  number;
+  couleur:        string;
+}
+
+const REGLES_RESILIATION: RegleResiliation[] = [
+  {
+    id: "hamon", label: "Loi Hamon", icone: "⚡",
+    description: "Résiliation à tout moment après 1 an de contrat, sans frais ni pénalité. Le nouvel assureur se charge des démarches.",
+    procedure: "1. Souscrire un nouveau contrat auprès d'un autre assureur\n2. Le nouvel assureur envoie la demande de résiliation à votre place\n3. L'ancien contrat est résilié automatiquement sous 1 mois",
+    delai: "Prise d'effet sous 1 mois après réception par l'assureur",
+    types: ["auto","moto","mrh","sante"],
+    conditionMois: 12,
+    couleur: "#2563EB",
+  },
+  {
+    id: "lemoine", label: "Loi Lemoine", icone: "🏦",
+    description: "Résiliation à tout moment et sans frais pour l'assurance emprunteur, dès la 1ère année.",
+    procedure: "1. Trouver une nouvelle assurance emprunteur\n2. Envoyer la demande de substitution à la banque\n3. La banque a 10 jours pour accepter ou refuser",
+    delai: "Prise d'effet le lendemain de la réception par la banque",
+    types: ["emprunteur"],
+    conditionMois: 0,
+    couleur: "#7C3AED",
+  },
+  {
+    id: "echeance", label: "Résiliation à l'échéance annuelle", icone: "📅",
+    description: "Pour tous les contrats : résiliation possible au moins 2 mois avant la date d'échéance annuelle.",
+    procedure: "1. Identifier la date d'échéance du contrat\n2. Envoyer un courrier recommandé avec AR au moins 2 mois avant\n3. La résiliation prend effet à la date d'échéance",
+    delai: "Prise d'effet à la date d'échéance annuelle",
+    types: ["auto","moto","mrh","gav","scolaire","deces","ij","dependance","sante","emprunteur","rcpro","mrp"],
+    conditionMois: 0,
+    couleur: "#059669",
+  },
+  {
+    id: "motif_legitime", label: "Motif légitime (art. L.113-16)", icone: "📋",
+    description: "Changement de situation : déménagement, mariage, divorce, retraite, changement de profession, décès du souscripteur.",
+    procedure: "1. Rassembler le justificatif du changement de situation\n2. Envoyer un courrier recommandé dans les 3 mois suivant l'événement\n3. Joindre le justificatif (acte de mariage, justificatif de domicile...)",
+    delai: "Prise d'effet sous 1 mois après réception",
+    types: ["auto","moto","mrh","gav","scolaire","deces","ij","dependance","sante","emprunteur","rcpro","mrp"],
+    conditionMois: 0,
+    couleur: "#D97706",
+  },
+  {
+    id: "chatel", label: "Loi Chatel (art. L.113-15-1)", icone: "⚖️",
+    description: "L'assureur n'a pas envoyé l'avis d'échéance dans les délais légaux (au moins 15 jours avant la date limite de résiliation).",
+    procedure: "1. Vérifier que l'avis d'échéance a été reçu hors délai\n2. Résiliation possible à tout moment par lettre recommandée\n3. Aucun délai de préavis supplémentaire requis",
+    delai: "Prise d'effet sous 1 mois après notification",
+    types: ["auto","moto","mrh","gav","scolaire","ij","dependance","sante","rcpro","mrp"],
+    conditionMois: 12,
+    couleur: "#0891B2",
+  },
+  {
+    id: "sinistre", label: "Résiliation après sinistre", icone: "🚨",
+    description: "Suite à un sinistre déclaré, l'assuré ou l'assureur peut résilier le contrat dans un délai d'un mois.",
+    procedure: "1. La résiliation doit être notifiée dans le mois suivant le sinistre\n2. Envoi d'un courrier recommandé avec AR\n3. L'assureur peut aussi initier la résiliation",
+    delai: "Prise d'effet sous 1 mois après notification",
+    types: ["auto","moto","mrh","sante","rcpro","mrp"],
+    conditionMois: 0,
+    couleur: "#DC2626",
+  },
+  {
+    id: "non_paiement", label: "Non-paiement des cotisations", icone: "💸",
+    description: "En cas d'impayé, l'assureur suspend les garanties puis résilie après mise en demeure restée sans effet.",
+    procedure: "1. L'assureur envoie une mise en demeure par courrier\n2. Si non-régularisation sous 30 jours → suspension des garanties\n3. Si non-régularisation sous 10 jours supplémentaires → résiliation",
+    delai: "40 jours après la mise en demeure",
+    types: ["auto","moto","mrh","gav","scolaire","deces","ij","dependance","sante","emprunteur","rcpro","mrp"],
+    conditionMois: 0,
+    couleur: "#9F1239",
+  },
+];
 
 // ── Helpers ───────────────────────────────────────────────────
+function moisDepuisDebut(dateDebut: string): number {
+  const debut = new Date(dateDebut);
+  const now   = new Date();
+  return (now.getFullYear() - debut.getFullYear()) * 12 + (now.getMonth() - debut.getMonth());
+}
+
 function Label({ text }: { text: string }) {
   return <label style={{ display:"block", fontSize:9, fontWeight:700, color:"var(--madel-muted)", textTransform:"uppercase", letterSpacing:".06em", marginBottom:5 }}>{text}</label>;
 }
@@ -45,7 +149,7 @@ function Overlay({ children }: { children: React.ReactNode }) {
 function Modal({ title, children, onClose, width=480 }: { title: string; children: React.ReactNode; onClose: () => void; width?: number }) {
   return (
     <Overlay>
-      <div style={{ background:"#fff", borderRadius:18, padding:28, width, maxWidth:"95vw", boxShadow:"var(--shadow-lg)" }}>
+      <div style={{ background:"#fff", borderRadius:18, padding:28, width, maxWidth:"95vw", maxHeight:"90vh", overflowY:"auto", boxShadow:"var(--shadow-lg)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
           <div style={{ fontSize:16, fontWeight:800, color:"var(--madel-navy)" }}>{title}</div>
           <button onClick={onClose} style={{ border:"none", background:"var(--madel-bg)", borderRadius:"50%", width:30, height:30, cursor:"pointer", fontSize:14, color:"var(--madel-muted)", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
@@ -64,98 +168,116 @@ function Btn({ label, onClick, variant="primary", disabled=false }: { label: str
   return <button onClick={onClick} disabled={disabled} style={{ ...styles[variant], padding:"11px 20px", borderRadius:10, cursor:disabled?"not-allowed":"pointer", fontFamily:"var(--madel-font)", fontWeight:700, fontSize:13, opacity:disabled?.45:1, transition:"opacity .15s" }}>{label}</button>;
 }
 
-// ── Modals contrat ────────────────────────────────────────────
-function ModalSouscription({ clientId, onClose }: { clientId: string; onClose: () => void }) {
-  const { addContrat } = useClientsStore();
+// ── Modal : choix du simulateur (nouveau contrat) ─────────────
+function ModalChoixSimulateur({ clientId, onClose }: { clientId: string; onClose: () => void }) {
+  const navigate = useNavigate();
   const [type, setType] = useState<TypeContrat>("auto");
-  const [produit, setProduit] = useState("");
-  const [prime, setPrime] = useState(500);
   return (
-    <Modal title="📝 Nouveau contrat" onClose={onClose} width={520}>
+    <Modal title="📝 Nouveau contrat — Choisir le simulateur" onClose={onClose} width={540}>
+      <div style={{ fontSize:12, color:"var(--madel-muted)", marginBottom:16, lineHeight:1.5 }}>
+        Sélectionnez le type de contrat. Vous serez redirigé vers le simulateur pour calculer la prime, puis vous pourrez souscrire directement.
+      </div>
       <Label text="Type de garantie" />
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:16 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:24 }}>
         {TYPES.map(t => {
           const tl = TYPE_LABELS[t];
-          return <button key={t} onClick={() => setType(t)} style={{ padding:"9px 4px", borderRadius:9, border:`2px solid ${type===t?"var(--madel-rose)":"var(--madel-border)"}`, background:type===t?"var(--madel-rose-light)":"#fff", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:10, color:type===t?"var(--madel-rose-dark)":"var(--madel-navy)", fontWeight:type===t?700:400 }}>
-            <div style={{ fontSize:20, marginBottom:2 }}>{tl.icone}</div>{tl.label}
-          </button>;
+          return (
+            <button key={t} onClick={() => setType(t)}
+              style={{ padding:"10px 4px", borderRadius:9, border:`2px solid ${type===t?"var(--madel-rose)":"var(--madel-border)"}`, background:type===t?"var(--madel-rose-light)":"#fff", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:10, color:type===t?"var(--madel-rose-dark)":"var(--madel-navy)", fontWeight:type===t?700:400, transition:"all .15s" }}>
+              <div style={{ fontSize:20, marginBottom:3 }}>{tl.icone}</div>{tl.label}
+            </button>
+          );
         })}
       </div>
-      <Label text="Nom du produit / formule" />
-      <input value={produit} onChange={e => setProduit(e.target.value)} placeholder={`Ex: ${TYPE_LABELS[type].label} Confort`} style={{ ...inp, marginBottom:14 }} />
-      <Label text="Prime annuelle (€)" />
-      <input type="number" value={prime} min={0} onChange={e => setPrime(+e.target.value)} style={{ ...inp, marginBottom:22 }} />
+      <div style={{ padding:"12px 14px", borderRadius:9, background:"var(--madel-bg)", border:"1px solid var(--madel-border)", fontSize:11, color:"var(--madel-muted)", marginBottom:22 }}>
+        💡 Le simulateur <strong>{TYPE_LABELS[type].label}</strong> va s'ouvrir. Renseignez les informations du bien/de la personne, calculez la prime, puis cliquez sur <strong>"✅ Souscrire ce contrat"</strong>.
+      </div>
       <div style={{ display:"flex", gap:10 }}>
-        <Btn label="✅ Souscrire le contrat" onClick={() => { if(!produit.trim()) return; addContrat(clientId, { id:"", type, produit, compagnie:"Madel Assurances", numeroContrat:`${type.toUpperCase()}-${new Date().getFullYear()}-${Math.floor(Math.random()*9000)+1000}`, statut:"actif", dateDebut:new Date().toISOString().split("T")[0], primeAnnuelle:prime, details:{} }); onClose(); }} disabled={!produit.trim()} />
+        <button
+          onClick={() => navigate(`${SIMULATEUR_ROUTE[type]}?clientId=${clientId}&mode=nouveau`)}
+          style={{ flex:1, padding:"12px", borderRadius:10, border:"none", background:"var(--madel-rose)", color:"#fff", cursor:"pointer", fontFamily:"var(--madel-font)", fontWeight:700, fontSize:13 }}>
+          Ouvrir le simulateur {TYPE_LABELS[type].icone} →
+        </button>
         <Btn label="Annuler" onClick={onClose} variant="ghost" />
       </div>
     </Modal>
   );
 }
 
-function ModalModifier({ clientId, contrat, onClose }: { clientId: string; contrat: ContratDemo; onClose: () => void }) {
-  const { updateContrat } = useClientsStore();
-  const [produit, setProduit] = useState(contrat.produit);
-  const [prime, setPrime] = useState(contrat.primeAnnuelle);
-  return (
-    <Modal title={`✏️ Modifier — ${TYPE_LABELS[contrat.type].icone} ${contrat.produit}`} onClose={onClose}>
-      <div style={{ fontSize:11, color:"var(--madel-muted)", marginBottom:18, padding:"8px 12px", borderRadius:8, background:"var(--madel-bg)" }}>{contrat.numeroContrat} · Depuis le {new Date(contrat.dateDebut).toLocaleDateString("fr-FR")}</div>
-      <Label text="Nom du produit / formule" />
-      <input value={produit} onChange={e => setProduit(e.target.value)} style={{ ...inp, marginBottom:14 }} />
-      <Label text="Prime annuelle (€)" />
-      <input type="number" value={prime} min={0} onChange={e => setPrime(+e.target.value)} style={{ ...inp, marginBottom:22 }} />
-      <div style={{ display:"flex", gap:10 }}>
-        <Btn label="💾 Enregistrer les modifications" onClick={() => { updateContrat(clientId, contrat.id, { produit, primeAnnuelle: prime }); onClose(); }} disabled={!produit.trim()} />
-        <Btn label="Annuler" onClick={onClose} variant="ghost" />
-      </div>
-    </Modal>
-  );
-}
-
-function ModalRemplacer({ clientId, contrat, onClose }: { clientId: string; contrat: ContratDemo; onClose: () => void }) {
-  const { remplacerContrat } = useClientsStore();
-  const [type, setType] = useState<TypeContrat>(contrat.type);
-  const [produit, setProduit] = useState("");
-  const [prime, setPrime] = useState(contrat.primeAnnuelle);
-  return (
-    <Modal title={`🔄 Remplacer — ${TYPE_LABELS[contrat.type].icone} ${contrat.produit}`} onClose={onClose} width={540}>
-      <div style={{ padding:"10px 14px", borderRadius:9, background:"#FEF3E2", border:"1px solid #E8B86D", fontSize:11, color:"#92520A", marginBottom:18 }}>
-        ⚠️ L'ancien contrat sera automatiquement résilié au profit du nouveau.
-      </div>
-      <Label text="Nouveau type de contrat" />
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:16 }}>
-        {TYPES.map(t => {
-          const tl = TYPE_LABELS[t];
-          return <button key={t} onClick={() => setType(t)} style={{ padding:"8px 4px", borderRadius:9, border:`2px solid ${type===t?"var(--madel-rose)":"var(--madel-border)"}`, background:type===t?"var(--madel-rose-light)":"#fff", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:10, color:type===t?"var(--madel-rose-dark)":"var(--madel-navy)", fontWeight:type===t?700:400 }}>
-            <div style={{ fontSize:18, marginBottom:2 }}>{tl.icone}</div>{tl.label}
-          </button>;
-        })}
-      </div>
-      <Label text="Nom du nouveau produit / formule" />
-      <input value={produit} onChange={e => setProduit(e.target.value)} placeholder={`Ex: ${TYPE_LABELS[type].label} Confort`} style={{ ...inp, marginBottom:14 }} />
-      <Label text="Nouvelle prime annuelle (€)" />
-      <input type="number" value={prime} min={0} onChange={e => setPrime(+e.target.value)} style={{ ...inp, marginBottom:22 }} />
-      <div style={{ display:"flex", gap:10 }}>
-        <Btn label="🔄 Valider le remplacement" onClick={() => { if(!produit.trim()) return; remplacerContrat(clientId, contrat.id, { id:"", type, produit, compagnie:"Madel Assurances", numeroContrat:`${type.toUpperCase()}-${new Date().getFullYear()}-${Math.floor(Math.random()*9000)+1000}`, statut:"actif", dateDebut:new Date().toISOString().split("T")[0], primeAnnuelle:prime, details:{} }); onClose(); }} disabled={!produit.trim()} />
-        <Btn label="Annuler" onClick={onClose} variant="ghost" />
-      </div>
-    </Modal>
-  );
-}
-
+// ── Modal : résiliation avec règles légales ───────────────────
 function ModalResilier({ clientId, contrat, onClose }: { clientId: string; contrat: ContratDemo; onClose: () => void }) {
   const { resilierContrat } = useClientsStore();
-  const [motif, setMotif] = useState("");
+  const [regleId, setRegleId]   = useState<string>("");
+  const [confirme, setConfirme] = useState(false);
+
+  const mois = moisDepuisDebut(contrat.dateDebut);
+
+  const reglesApplicables = REGLES_RESILIATION.filter(r =>
+    r.types.includes(contrat.type) && mois >= r.conditionMois
+  );
+
+  const regleSelectionnee = REGLES_RESILIATION.find(r => r.id === regleId);
+
   return (
-    <Modal title={`🚫 Résilier — ${TYPE_LABELS[contrat.type].icone} ${contrat.produit}`} onClose={onClose}>
-      <div style={{ fontSize:11, color:"var(--madel-muted)", marginBottom:18, padding:"8px 12px", borderRadius:8, background:"var(--madel-bg)" }}>{contrat.numeroContrat} · {eur(contrat.primeAnnuelle)}/an</div>
-      <Label text="Motif de résiliation (obligatoire)" />
-      <select value={motif} onChange={e => setMotif(e.target.value)} style={{ ...inp, marginBottom:22, cursor:"pointer" }}>
-        <option value="">Sélectionner un motif...</option>
-        {MOTIFS.map(m => <option key={m} value={m}>{m}</option>)}
-      </select>
+    <Modal title={`🚫 Résilier — ${TYPE_LABELS[contrat.type].icone} ${contrat.produit}`} onClose={onClose} width={580}>
+      {/* Infos contrat */}
+      <div style={{ padding:"10px 14px", borderRadius:9, background:"var(--madel-bg)", border:"1px solid var(--madel-border)", fontSize:11, color:"var(--madel-muted)", marginBottom:20, display:"flex", gap:16 }}>
+        <span>📄 {contrat.numeroContrat}</span>
+        <span>💶 {eur(contrat.primeAnnuelle)}/an</span>
+        <span>📅 Depuis le {new Date(contrat.dateDebut).toLocaleDateString("fr-FR")}</span>
+        <span style={{ color: mois >= 12 ? "#059669" : "var(--madel-rose)", fontWeight:700 }}>({mois} mois)</span>
+      </div>
+
+      {/* Choix de la base légale */}
+      <Label text="Base légale de résiliation" />
+      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:20 }}>
+        {reglesApplicables.map(r => (
+          <button key={r.id} onClick={() => { setRegleId(r.id); setConfirme(false); }}
+            style={{ padding:"12px 14px", borderRadius:10, border:`2px solid ${regleId===r.id ? r.couleur : "var(--madel-border)"}`, background:regleId===r.id ? `${r.couleur}08` : "#fff", cursor:"pointer", fontFamily:"var(--madel-font)", textAlign:"left", transition:"all .15s" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+              <span style={{ fontSize:16 }}>{r.icone}</span>
+              <span style={{ fontSize:12, fontWeight:700, color:regleId===r.id ? r.couleur : "var(--madel-navy)" }}>{r.label}</span>
+            </div>
+            <div style={{ fontSize:11, color:"var(--madel-muted)", lineHeight:1.4 }}>{r.description}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Procédure de la règle sélectionnée */}
+      {regleSelectionnee && (
+        <div style={{ padding:"14px 16px", borderRadius:10, background:`${regleSelectionnee.couleur}08`, border:`1px solid ${regleSelectionnee.couleur}30`, marginBottom:20 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:regleSelectionnee.couleur, marginBottom:10 }}>
+            📋 Procédure — {regleSelectionnee.label}
+          </div>
+          <div style={{ fontSize:11, color:"var(--madel-text)", lineHeight:1.8, whiteSpace:"pre-line" }}>
+            {regleSelectionnee.procedure}
+          </div>
+          <div style={{ marginTop:10, padding:"8px 10px", borderRadius:7, background:"rgba(0,0,0,.04)", fontSize:10, color:"var(--madel-muted)" }}>
+            ⏱ {regleSelectionnee.delai}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation */}
+      {regleSelectionnee && !confirme && (
+        <div style={{ padding:"12px 14px", borderRadius:9, background:"#FEF3E2", border:"1px solid #E8B86D", fontSize:11, color:"#92520A", marginBottom:20 }}>
+          ⚠️ La résiliation est <strong>irréversible</strong> dans le simulateur. Cliquez sur "Confirmer" pour valider.
+        </div>
+      )}
+
       <div style={{ display:"flex", gap:10 }}>
-        <Btn label="Confirmer la résiliation" onClick={() => { resilierContrat(clientId, contrat.id, motif); onClose(); }} disabled={!motif} variant="danger" />
+        {regleSelectionnee && !confirme && (
+          <button onClick={() => setConfirme(true)}
+            style={{ flex:1, padding:"11px", borderRadius:10, border:"none", background:"#F59E0B", color:"#fff", cursor:"pointer", fontFamily:"var(--madel-font)", fontWeight:700, fontSize:13 }}>
+            Je confirme vouloir résilier →
+          </button>
+        )}
+        {regleSelectionnee && confirme && (
+          <button onClick={() => { resilierContrat(clientId, contrat.id, regleSelectionnee.label); onClose(); }}
+            style={{ flex:1, padding:"11px", borderRadius:10, border:"none", background:"#DC2626", color:"#fff", cursor:"pointer", fontFamily:"var(--madel-font)", fontWeight:700, fontSize:13 }}>
+            🚫 Résilier définitivement
+          </button>
+        )}
         <Btn label="Annuler" onClick={onClose} variant="ghost" />
       </div>
     </Modal>
@@ -163,18 +285,18 @@ function ModalResilier({ clientId, contrat, onClose }: { clientId: string; contr
 }
 
 // ── Composant principal ───────────────────────────────────────
-type ActionType = "modifier" | "remplacer" | "resilier";
+type ActionType = "resilier";
 interface ActionState { type: ActionType; contrat: ContratDemo; }
 
 export default function FicheAssure() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const { id }     = useParams<{ id: string }>();
+  const navigate   = useNavigate();
   const { getClient, clientActif } = useClientsStore();
   const client = getClient(id ?? "");
 
-  const [onglet, setOnglet] = useState<"profil"|"contrats">("profil");
+  const [onglet, setOnglet]               = useState<"profil"|"contrats">("profil");
   const [showSouscription, setShowSouscription] = useState(false);
-  const [action, setAction] = useState<ActionState | null>(null);
+  const [action, setAction]               = useState<ActionState | null>(null);
 
   if (!client) return (
     <div style={{ padding:60, textAlign:"center", color:"var(--madel-muted)" }}>
@@ -184,28 +306,32 @@ export default function FicheAssure() {
     </div>
   );
 
-  const contratsActifs = client.contrats.filter(c => c.statut === "actif");
+  const contratsActifs   = client.contrats.filter(c => c.statut === "actif");
   const contratsResilies = client.contrats.filter(c => c.statut === "resilie");
-  const primesAnn = contratsActifs.reduce((s, c) => s + c.primeAnnuelle, 0);
-  const age = new Date().getFullYear() - new Date(client.dateNaissance).getFullYear();
-  const sl = STATUT_LABELS[client.statut];
-  const hue = (client.id.charCodeAt(4) ?? 0) * 23 % 360;
+  const primesAnn        = contratsActifs.reduce((s, c) => s + c.primeAnnuelle, 0);
+  const age              = new Date().getFullYear() - new Date(client.dateNaissance).getFullYear();
+  const sl               = STATUT_LABELS[client.statut];
+  const hue              = (client.id.charCodeAt(4) ?? 0) * 23 % 360;
 
   return (
     <div style={{ fontFamily:"var(--madel-font)", color:"var(--madel-navy)", maxWidth:1100, margin:"0 auto", padding:"24px 20px 48px" }}>
 
       {/* Modals */}
-      {showSouscription && <ModalSouscription clientId={client.id} onClose={() => setShowSouscription(false)} />}
-      {action?.type === "modifier"  && <ModalModifier  clientId={client.id} contrat={action.contrat} onClose={() => setAction(null)} />}
-      {action?.type === "remplacer" && <ModalRemplacer clientId={client.id} contrat={action.contrat} onClose={() => setAction(null)} />}
-      {action?.type === "resilier"  && <ModalResilier  clientId={client.id} contrat={action.contrat} onClose={() => setAction(null)} />}
+      {showSouscription && (
+        <ModalChoixSimulateur clientId={client.id} onClose={() => setShowSouscription(false)} />
+      )}
+      {action?.type === "resilier" && (
+        <ModalResilier clientId={client.id} contrat={action.contrat} onClose={() => setAction(null)} />
+      )}
 
       {/* Breadcrumb */}
       <div style={{ display:"flex", gap:6, alignItems:"center", marginBottom:20, fontSize:12, color:"var(--madel-muted)" }}>
         <button onClick={() => navigate("/recherche")} style={{ border:"none", background:"none", cursor:"pointer", color:"var(--madel-rose)", fontFamily:"var(--madel-font)", fontSize:12, padding:0 }}>🔍 Recherche</button>
         <span>›</span>
         <span style={{ color:"var(--madel-navy)", fontWeight:600 }}>{client.prenom} {client.nom}</span>
-        {clientActif?.id === client.id && <span style={{ fontSize:10, padding:"2px 8px", borderRadius:20, background:"var(--madel-rose-light)", color:"var(--madel-rose-dark)", fontWeight:700, marginLeft:6 }}>🎲 Simulation en cours</span>}
+        {clientActif?.id === client.id && (
+          <span style={{ fontSize:10, padding:"2px 8px", borderRadius:20, background:"var(--madel-rose-light)", color:"var(--madel-rose-dark)", fontWeight:700, marginLeft:6 }}>🎲 Simulation en cours</span>
+        )}
       </div>
 
       {/* ── Hero client ─────────────────────────────────────── */}
@@ -218,56 +344,45 @@ export default function FicheAssure() {
             <div>
               <div style={{ fontSize:24, fontWeight:800, color:"#fff", marginBottom:4 }}>{client.prenom} {client.nom}</div>
               <div style={{ fontSize:13, color:"rgba(255,255,255,.65)" }}>{age} ans · {client.ville} ({client.codePostal}) · {client.telephone}</div>
-              <div style={{ marginTop:10, display:"flex", gap:8, flexWrap:"wrap" }}>
-                <span style={{ fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:20, background:sl.bg, color:sl.couleur }}>{sl.label}</span>
-                <span style={{ fontSize:11, padding:"4px 12px", borderRadius:20, background:"rgba(255,255,255,.12)", color:"rgba(255,255,255,.8)" }}>{SIT[client.situationFamiliale] ?? client.situationFamiliale}</span>
-                <span style={{ fontSize:11, padding:"4px 12px", borderRadius:20, background:"rgba(255,255,255,.12)", color:"rgba(255,255,255,.8)" }}>{CSP[client.csp] ?? client.csp}</span>
-                {client.nbEnfants > 0 && <span style={{ fontSize:11, padding:"4px 12px", borderRadius:20, background:"rgba(255,255,255,.12)", color:"rgba(255,255,255,.8)" }}>{client.nbEnfants} enfant{client.nbEnfants>1?"s":""}</span>}
+              <div style={{ marginTop:6, display:"flex", gap:8, flexWrap:"wrap" }}>
+                <span style={{ fontSize:10, padding:"3px 9px", borderRadius:20, background:sl.bg, color:sl.couleur, fontWeight:700 }}>{sl.label}</span>
+                <span style={{ fontSize:10, padding:"3px 9px", borderRadius:20, background:"rgba(255,255,255,.12)", color:"rgba(255,255,255,.75)" }}>{client.profession}</span>
               </div>
             </div>
           </div>
-
-          {/* KPIs rapides */}
-          <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
-            {[
-              { l:"Contrats actifs", v:String(contratsActifs.length), c:"#86EFAC" },
-              { l:"Primes/an", v:eur(primesAnn), c:"#fff" },
-              { l:"Primes/mois", v:eurDec(primesAnn/12), c:"var(--madel-rose-mid)" },
-            ].map(k => (
-              <div key={k.l} style={{ textAlign:"center", padding:"12px 16px", borderRadius:12, background:"rgba(255,255,255,.1)", minWidth:100 }}>
-                <div style={{ fontSize:16, fontWeight:800, color:k.c, fontFamily:"monospace" }}>{k.v}</div>
-                <div style={{ fontSize:10, color:"rgba(255,255,255,.5)", marginTop:3 }}>{k.l}</div>
-              </div>
-            ))}
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginBottom:4 }}>Portefeuille annuel</div>
+            <div style={{ fontSize:28, fontWeight:800, color:"#fff", fontFamily:"monospace" }}>{eur(primesAnn)}</div>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>{contratsActifs.length} contrat{contratsActifs.length!==1?"s":""} actif{contratsActifs.length!==1?"s":""}</div>
           </div>
         </div>
 
-        {/* Actions rapides simulateurs */}
-        <div style={{ marginTop:18, paddingTop:16, borderTop:"1px solid rgba(255,255,255,.1)", display:"flex", gap:8, flexWrap:"wrap" }}>
-          <span style={{ fontSize:10, color:"rgba(255,255,255,.4)", alignSelf:"center", marginRight:4 }}>Simuler :</span>
-          {[
-            { label:"🚗 Auto", path:"/simulateurs/auto" },
-            { label:"🏠 MRH", path:"/simulateurs/mrh" },
-            { label:"💊 Santé", path:"/simulateurs/sante" },
-            { label:"🏦 Emprunteur", path:"/simulateurs/emprunteur" },
-            { label:"⚖️ RC Pro", path:"/simulateurs/rcpro" },
-          ].map(s => (
-            <button key={s.path} onClick={() => navigate(`${s.path}?assure=${client.id}`)} style={{ padding:"6px 12px", borderRadius:8, border:"1px solid rgba(255,255,255,.2)", background:"rgba(255,255,255,.08)", color:"rgba(255,255,255,.8)", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:11, fontWeight:600, transition:"background .15s" }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.18)"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.08)"}>
-              {s.label}
-            </button>
-          ))}
+        {/* Accès rapide simulateurs — avec clientId */}
+        <div style={{ marginTop:20, paddingTop:16, borderTop:"1px solid rgba(255,255,255,.12)", display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+          <span style={{ fontSize:10, color:"rgba(255,255,255,.4)", marginRight:4 }}>Simuler & souscrire :</span>
+          {TYPES.map(t => {
+            const tl = TYPE_LABELS[t];
+            return (
+              <button key={t}
+                onClick={() => navigate(`${SIMULATEUR_ROUTE[t]}?clientId=${client.id}&mode=nouveau`)}
+                style={{ padding:"6px 12px", borderRadius:8, border:"1px solid rgba(255,255,255,.2)", background:"rgba(255,255,255,.08)", color:"rgba(255,255,255,.8)", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:11, fontWeight:600, transition:"background .15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.18)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.08)"}>
+                {tl.icone} {tl.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* ── Onglets ──────────────────────────────────────────── */}
       <div style={{ display:"flex", gap:0, marginBottom:20, background:"#fff", borderRadius:12, padding:5, border:"1px solid var(--madel-border)", boxShadow:"var(--shadow-xs)" }}>
         {[
-          { k:"profil",   l:"👤 Profil", badge: null },
+          { k:"profil",   l:"👤 Profil",   badge: null },
           { k:"contrats", l:"📄 Contrats", badge: contratsActifs.length > 0 ? String(contratsActifs.length) : null },
         ].map(tab => (
-          <button key={tab.k} onClick={() => setOnglet(tab.k as "profil"|"contrats")} style={{ flex:1, padding:"11px 16px", borderRadius:9, border:"none", background:onglet===tab.k?"var(--madel-navy)":"transparent", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:13, fontWeight:onglet===tab.k?700:400, color:onglet===tab.k?"#fff":"var(--madel-muted)", transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+          <button key={tab.k} onClick={() => setOnglet(tab.k as "profil"|"contrats")}
+            style={{ flex:1, padding:"11px 16px", borderRadius:9, border:"none", background:onglet===tab.k?"var(--madel-navy)":"transparent", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:13, fontWeight:onglet===tab.k?700:400, color:onglet===tab.k?"#fff":"var(--madel-muted)", transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
             {tab.l}
             {tab.badge && <span style={{ fontSize:10, fontWeight:800, padding:"2px 7px", borderRadius:20, background:onglet===tab.k?"rgba(255,255,255,.25)":"var(--madel-rose-light)", color:onglet===tab.k?"#fff":"var(--madel-rose-dark)" }}>{tab.badge}</span>}
           </button>
@@ -283,7 +398,7 @@ export default function FicheAssure() {
             <InfoRow label="Naissance" valeur={`${new Date(client.dateNaissance).toLocaleDateString("fr-FR")} — ${age} ans`} />
             <InfoRow label="Email" valeur={client.email} />
             <InfoRow label="Téléphone" valeur={client.telephone} />
-            <InfoRow label="Adresse" valeur={`${client.adresse}`} />
+            <InfoRow label="Adresse" valeur={client.adresse} />
             <InfoRow label="Ville" valeur={`${client.codePostal} ${client.ville}`} />
           </Card>
 
@@ -307,7 +422,6 @@ export default function FicheAssure() {
             {client.enfants.map((e,i) => <InfoRow key={i} label={`Enfant ${i+1}`} valeur={`${e.prenom} — ${new Date(e.dateNaissance).toLocaleDateString("fr-FR")}`} />)}
           </Card>
 
-          {/* Résumé contrats */}
           <div style={{ gridColumn:"1 / -1" }}>
             <Card titre="📋 Résumé du portefeuille" action={
               <button onClick={() => setOnglet("contrats")} style={{ fontSize:11, fontWeight:700, color:"var(--madel-rose)", border:"none", background:"none", cursor:"pointer", fontFamily:"var(--madel-font)" }}>Gérer les contrats →</button>
@@ -337,7 +451,6 @@ export default function FicheAssure() {
             </Card>
           </div>
 
-          {/* Infos cabinet */}
           <Card titre="🏢 Cabinet">
             <InfoRow label="ID client" valeur={client.id} />
             <InfoRow label="Statut" valeur={sl.label} />
@@ -356,7 +469,8 @@ export default function FicheAssure() {
             <div style={{ fontSize:13, color:"var(--madel-muted)" }}>
               {contratsActifs.length} contrat{contratsActifs.length!==1?"s":""} actif{contratsActifs.length!==1?"s":""} · {eur(primesAnn)}/an
             </div>
-            <button onClick={() => setShowSouscription(true)} style={{ padding:"10px 20px", borderRadius:10, border:"none", background:"var(--madel-rose)", color:"#fff", cursor:"pointer", fontFamily:"var(--madel-font)", fontWeight:700, fontSize:13 }}>
+            <button onClick={() => setShowSouscription(true)}
+              style={{ padding:"10px 20px", borderRadius:10, border:"none", background:"var(--madel-rose)", color:"#fff", cursor:"pointer", fontFamily:"var(--madel-font)", fontWeight:700, fontSize:13 }}>
               + Nouveau contrat
             </button>
           </div>
@@ -372,7 +486,8 @@ export default function FicheAssure() {
 
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {contratsActifs.map(ct => {
-              const tl = TYPE_LABELS[ct.type];
+              const tl   = TYPE_LABELS[ct.type];
+              const mois = moisDepuisDebut(ct.dateDebut);
               return (
                 <div key={ct.id} style={{ background:"#fff", borderRadius:16, border:"1px solid var(--madel-border)", overflow:"hidden", boxShadow:"var(--shadow-xs)" }}>
                   {/* En-tête contrat */}
@@ -381,11 +496,12 @@ export default function FicheAssure() {
                       <div style={{ width:48, height:48, borderRadius:12, background:`${tl.couleur}12`, border:`1.5px solid ${tl.couleur}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>{tl.icone}</div>
                       <div>
                         <div style={{ fontWeight:700, fontSize:15 }}>{ct.produit}</div>
-                        <div style={{ fontSize:11, color:"var(--madel-muted)", marginTop:2 }}>
-                          {ct.numeroContrat} · {ct.compagnie}
-                        </div>
+                        <div style={{ fontSize:11, color:"var(--madel-muted)", marginTop:2 }}>{ct.numeroContrat} · {ct.compagnie}</div>
                         <div style={{ fontSize:11, color:"var(--madel-muted)" }}>
                           Depuis le {new Date(ct.dateDebut).toLocaleDateString("fr-FR")}
+                          <span style={{ marginLeft:8, padding:"1px 6px", borderRadius:10, background: mois >= 12 ? "#D1FAE5" : "#FEF3E2", color: mois >= 12 ? "#065F46" : "#92520A", fontSize:9, fontWeight:700 }}>
+                            {mois} mois
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -396,28 +512,29 @@ export default function FicheAssure() {
                         <div style={{ fontSize:11, color:"var(--madel-muted)" }}>{eurDec(ct.primeAnnuelle/12)}/mois</div>
                       </div>
 
-                      {/* 3 actions */}
+                      {/* 2 actions : Remplacer + Résilier (Modifier supprimé) */}
                       <div style={{ display:"flex", gap:6 }}>
-                        <button onClick={() => setAction({ type:"modifier", contrat:ct })} title="Modifier" style={{ padding:"8px 12px", borderRadius:8, border:"1.5px solid var(--madel-border)", background:"#fff", color:"var(--madel-navy)", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:11, fontWeight:600, transition:"all .15s" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor="var(--madel-navy)"; e.currentTarget.style.background="var(--madel-bg)"; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor="var(--madel-border)"; e.currentTarget.style.background="#fff"; }}>
-                          ✏️ Modifier
-                        </button>
-                        <button onClick={() => setAction({ type:"remplacer", contrat:ct })} title="Remplacer" style={{ padding:"8px 12px", borderRadius:8, border:"1.5px solid var(--madel-border)", background:"#fff", color:"var(--madel-navy)", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:11, fontWeight:600, transition:"all .15s" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor="#D97706"; e.currentTarget.style.background="#FFFBEB"; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor="var(--madel-border)"; e.currentTarget.style.background="#fff"; }}>
+                        <button
+                          onClick={() => navigate(`${SIMULATEUR_ROUTE[ct.type]}?clientId=${client.id}&mode=remplacement&ancienId=${ct.id}`)}
+                          title="Remplacer via simulateur"
+                          style={{ padding:"8px 12px", borderRadius:8, border:"1.5px solid #D97706", background:"#FFFBEB", color:"#92520A", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:11, fontWeight:700, transition:"all .15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background="#FEF3C7"}
+                          onMouseLeave={e => e.currentTarget.style.background="#FFFBEB"}>
                           🔄 Remplacer
                         </button>
-                        <button onClick={() => setAction({ type:"resilier", contrat:ct })} title="Résilier" style={{ padding:"8px 12px", borderRadius:8, border:"1.5px solid #FCA5A5", background:"#FEF2F2", color:"#DC2626", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:11, fontWeight:600, transition:"all .15s" }}
-                          onMouseEnter={e => { e.currentTarget.style.background="#FEE2E2"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background="#FEF2F2"; }}>
+                        <button
+                          onClick={() => setAction({ type:"resilier", contrat:ct })}
+                          title="Résilier"
+                          style={{ padding:"8px 12px", borderRadius:8, border:"1.5px solid #FCA5A5", background:"#FEF2F2", color:"#DC2626", cursor:"pointer", fontFamily:"var(--madel-font)", fontSize:11, fontWeight:700, transition:"all .15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background="#FEE2E2"}
+                          onMouseLeave={e => e.currentTarget.style.background="#FEF2F2"}>
                           🚫 Résilier
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Détails */}
+                  {/* Détails du contrat */}
                   {Object.keys(ct.details).length > 0 && (
                     <div style={{ padding:"10px 22px 14px", borderTop:"1px solid var(--madel-border)", background:"var(--madel-bg)", display:"flex", gap:20, flexWrap:"wrap" }}>
                       {Object.entries(ct.details).map(([k,v]) => (
@@ -433,7 +550,7 @@ export default function FicheAssure() {
             })}
           </div>
 
-          {/* Résiliés */}
+          {/* Contrats résiliés */}
           {contratsResilies.length > 0 && (
             <div style={{ marginTop:28 }}>
               <div style={{ fontSize:12, fontWeight:700, color:"var(--madel-muted)", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
@@ -448,7 +565,7 @@ export default function FicheAssure() {
                       <div>
                         <div style={{ fontSize:12, fontWeight:600 }}>{ct.produit}</div>
                         <div style={{ fontSize:10, color:"var(--madel-muted)" }}>
-                          Résilié{ct.dateFin?` le ${new Date(ct.dateFin).toLocaleDateString("fr-FR")}`:""}{ct.motifResiliation?` · ${ct.motifResiliation}`:""}
+                          Résilié{ct.dateFin ? ` le ${new Date(ct.dateFin).toLocaleDateString("fr-FR")}` : ""}{ct.motifResiliation ? ` · ${ct.motifResiliation}` : ""}
                         </div>
                       </div>
                     </div>

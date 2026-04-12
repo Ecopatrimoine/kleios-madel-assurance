@@ -3,6 +3,7 @@
 // Kleios Madel Assurance · BTS Assurance
 // ============================================================
 import { useState } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Types ─────────────────────────────────────────────────────
 type FormuleGAV = "seul" | "couple" | "famille";
@@ -14,7 +15,7 @@ const FORMULES = {
     label: "Seul",
     icone: "🧑",
     desc: "Assuré uniquement",
-    tarif: 125,
+    tarif: 65,
     capitaux: {
       ipp100:        600000,
       ipp5:           30000,
@@ -29,7 +30,7 @@ const FORMULES = {
     label: "Couple",
     icone: "👫",
     desc: "Assuré + conjoint",
-    tarif: 180,
+    tarif: 99,
     capitaux: {
       ipp100:        800000,
       ipp5:           40000,
@@ -44,7 +45,7 @@ const FORMULES = {
     label: "Famille",
     icone: "👨‍👩‍👧‍👦",
     desc: "Assuré + conjoint + enfants",
-    tarif: 225,
+    tarif: 125,
     capitaux: {
       ipp100:       1000000,
       ipp5:           50000,
@@ -62,25 +63,25 @@ const OPTIONS: { id: OptionGAV; label: string; desc: string; tarif: number }[] =
     id: "itt",
     label: "Incapacité Temporaire Totale (ITT)",
     desc: "Indemnité journalière en cas d'arrêt de travail consécutif à un accident garanti. Versée dès le 8e jour d'arrêt.",
-    tarif: 95,
+    tarif: 45,
   },
   {
     id: "accidents_medicaux",
     label: "Accidents médicaux",
     desc: "Couvre les aléas thérapeutiques et actes médicaux fautifs (erreur médicale, infection nosocomiale, etc.).",
-    tarif: 65,
+    tarif: 35,
   },
   {
     id: "protection_conducteur",
     label: "Protection conducteur étendue",
     desc: "Couvre vos dommages corporels lors de la conduite d'un véhicule prêté ou loué (non couvert par votre auto).",
-    tarif: 45,
+    tarif: 25,
   },
   {
     id: "assistance_voyage",
     label: "Assistance voyage étendue",
     desc: "Rapatriement sanitaire, frais médicaux à l'étranger, retour des accompagnants, envoi de médicaments.",
-    tarif: 38,
+    tarif: 22,
   },
 ];
 
@@ -144,6 +145,8 @@ export default function SimulateurGAV() {
   const [formule, setFormule]   = useState<FormuleGAV>("seul");
   const [options, setOptions]   = useState<OptionGAV[]>([]);
   const [afficherExclusions, setAfficherExclusions] = useState(false);
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("gav");
 
   const data = FORMULES[formule];
   const montantOptions = options.reduce((t, o) =>
@@ -370,6 +373,15 @@ export default function SimulateurGAV() {
         )}
       </div>
 
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={primeTTC}
+        onSouscrire={() => souscrire(primeTTC)}
+      />
     </div>
   );
 }

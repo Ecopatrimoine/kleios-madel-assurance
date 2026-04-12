@@ -2,7 +2,8 @@
 // SIMULATEUR AUTO — Version finale complète
 // Kleios Madel Assurance · BTS Assurance
 // ============================================================
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 import type {
   SimulateurAutoInput, ResultatSimulateurAuto,
   FormuleGarantie, UsagePrincipal, TypeVehicule,
@@ -38,6 +39,34 @@ export default function SimulateurAuto() {
   const [antecedents, setAntecedents] = useState<DonneesAntecedents | null>(null);
   const [resultat, setResultat]   = useState<ResultatSimulateurAuto | null>(null);
   const [onglet, setOnglet]       = useState<"resume" | "detail" | "garanties">("resume");
+
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, clientAge, ancienContrat, mode, isFromFiche, souscrire } = useSimulateurSouscription("auto");
+
+  // Pré-remplissage depuis le client et l'ancien contrat
+  useEffect(() => {
+    if (!isFromFiche) return;
+    const d = ancienContrat?.details as (Partial<SimulateurAutoInput> & { datePermis?: string }) | undefined;
+
+    setInput(prev => ({
+      ...prev,
+      ...(clientAge !== undefined && { agePrincipal: clientAge }),
+      ...(d?.bonusMalus             !== undefined && { bonusMalus:             d.bonusMalus }),
+      ...(d?.typeVehicule            !== undefined && { typeVehicule:            d.typeVehicule }),
+      ...(d?.puissanceFiscale        !== undefined && { puissanceFiscale:        d.puissanceFiscale }),
+      ...(d?.valeurVehicule          !== undefined && { valeurVehicule:          d.valeurVehicule }),
+      ...(d?.anneeMiseEnCirculation  !== undefined && { anneeMiseEnCirculation:  d.anneeMiseEnCirculation }),
+      ...(d?.usagePrincipal          !== undefined && { usagePrincipal:          d.usagePrincipal }),
+      ...(d?.kmAnnuels               !== undefined && { kmAnnuels:               d.kmAnnuels }),
+      ...(d?.zoneGeographique        !== undefined && { zoneGeographique:        d.zoneGeographique }),
+      ...(d?.formule                 !== undefined && { formule:                 d.formule }),
+      ...(d?.options                 !== undefined && { options:                 d.options }),
+    }));
+    if (d?.datePermis) setDatePermis(d.datePermis);
+    if (d?.bonusMalus !== undefined) setBmTexte(String(d.bonusMalus));
+    setResultat(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFromFiche, clientAge, ancienContrat?.id]);
 
   // Connexion plaque → formulaire
   const handleVehiculeCharge = useCallback((v: VehiculeDB) => {
@@ -512,6 +541,15 @@ export default function SimulateurAuto() {
           ))}
         </div>
       )}
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={resultat?.primeAnnuelle ?? null}
+        onSouscrire={() => souscrire(resultat!.primeAnnuelle, { ...input, datePermis })}
+      />
     </div>
   );
 }
@@ -602,3 +640,4 @@ const selectBase: React.CSSProperties = {
 const grid2: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
 const grid3: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 };
 const sectionLabel: React.CSSProperties = { fontSize: 9, fontWeight: 700, color: "var(--madel-muted)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 };
+

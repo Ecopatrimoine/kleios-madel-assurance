@@ -4,6 +4,7 @@
 // Locaux + Matériel + Marchandises + RC + Options
 // ============================================================
 import { useState } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Types ─────────────────────────────────────────────────────
 type StatutLocal    = "locataire" | "proprietaire";
@@ -76,6 +77,8 @@ export default function SimulateurMRP() {
   const [incendie, setIncendie]     = useState<string[]>(["aucun"]);
 
   const [onglet, setOnglet]         = useState<"profil" | "securite" | "garanties">("profil");
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("mrp");
 
   // ── Calculs ──────────────────────────────────────────────────
   const coeffActivite = COEFFS_ACTIVITE[typeActivite].coeff;
@@ -513,6 +516,15 @@ export default function SimulateurMRP() {
           </div>
         </div>
       )}
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={primeTTC}
+        onSouscrire={() => souscrire(primeTTC)}
+      />
     </div>
   );
 }

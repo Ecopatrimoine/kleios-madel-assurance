@@ -42,12 +42,15 @@ export const BM_DEPART = 1.00;
 // Base : prime RC seule, conducteur 35 ans, BM 1.00, zone3, usage promenade+travail, 12 000 km/an
 // Source : moyennes marché France Assureurs 2023 (ajusté pédagogique)
 export const PRIME_BASE_REFERENCE: Record<string, number> = {
-  citadine:    380,   // ex. Peugeot 208, Renault Clio
-  berline:     460,   // ex. Peugeot 308, Renault Megane
-  SUV:         540,   // ex. Peugeot 3008, Renault Kadjar
-  utilitaire:  620,   // ex. Renault Master, Peugeot Partner
-  sportive:    780,   // ex. Golf GTI, BMW Série 1 M
-  ancienne:    290,   // usage limité, valeur souvent faible
+  // Recalibré marché France Assureurs 2025 — profil réf : 35 ans, BM 1.00, zone3,
+  // promenade+travail, 12 000 km/an, formule tiers, coeff. tous à 1.00
+  // Cible : berline tiers+ BM 0.80 zone3 → ~420€ TTC
+  citadine:    230,   // ex. Peugeot 208, Renault Clio
+  berline:     280,   // ex. Peugeot 308, Renault Megane
+  SUV:         330,   // ex. Peugeot 3008, Renault Kadjar
+  utilitaire:  380,   // ex. Renault Master, Peugeot Partner
+  sportive:    470,   // ex. Golf GTI, BMW Série 1 M
+  ancienne:    175,   // usage limité, valeur souvent faible
 };
 
 // ============================================================

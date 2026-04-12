@@ -5,6 +5,7 @@
 // Garanties 2025 — Structure modulaire TÊTE + CORPS
 // ============================================================
 import { useState } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Types ─────────────────────────────────────────────────────
 type NiveauTete  = 1 | 2 | 3;
@@ -135,6 +136,8 @@ export default function SimulateurSante() {
   const [regime, setRegime]           = useState<Regime>("salarie");
   const [age, setAge]                 = useState(35);
   const [onglet, setOnglet]           = useState<"profil" | "tete" | "corps" | "cas">("profil");
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("sante");
 
   // ── Calcul prime ─────────────────────────────────────────────
   const cAge  = COEFF_AGE(age);
@@ -577,6 +580,15 @@ export default function SimulateurSante() {
           </div>
         </div>
       )}
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={primeAnnee}
+        onSouscrire={() => souscrire(primeAnnee)}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@
 // Actes de la Vie Quotidienne — Rente viagère
 // ============================================================
 import { useState } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Types ─────────────────────────────────────────────────────
 type FormuleDependance = "totale" | "integrale";
@@ -70,6 +71,8 @@ export default function SimulateurDependance() {
   const [questionnaire, setQuestionnaire]        = useState<NiveauQuestionnaire>("standard");
   const [revalorisation, setRevalorisation]      = useState(true);
   const [onglet, setOnglet]                      = useState<"tarif" | "avq" | "comparatif">("tarif");
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("dependance");
 
   // ── Calculs ──────────────────────────────────────────────────
   const tauxBase = BAREME_TOTALE[ageSouscription] ?? 1.00;
@@ -559,6 +562,15 @@ export default function SimulateurDependance() {
           </div>
         </div>
       )}
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={primeAnnuelleTTC}
+        onSouscrire={() => souscrire(primeAnnuelleTTC)}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 // Kleios Madel Assurance · BTS Assurance
 // ============================================================
 import { useState } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Types ─────────────────────────────────────────────────────
 type FormuleScolaire = "essentielle" | "confort" | "integrale";
@@ -84,6 +85,8 @@ const eur = (n: number) =>
 export default function SimulateurScolaire() {
   const [formule, setFormule]     = useState<FormuleScolaire>("confort");
   const [nbEnfants, setNbEnfants] = useState(1);
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("scolaire");
 
   const data      = FORMULES[formule];
   const plafonds  = PLAFONDS[formule];
@@ -252,6 +255,15 @@ export default function SimulateurScolaire() {
         Cependant, elle est fortement recommandée car la RC des parents couvre les dommages causés aux tiers, mais pas les dommages subis par l'enfant lui-même.
         La formule Intégrale est particulièrement pertinente pour les enfants pratiquant un sport en club en dehors de l'école.
       </div>
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={primeTTC}
+        onSouscrire={() => souscrire(primeTTC)}
+      />
     </div>
   );
 }

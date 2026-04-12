@@ -4,6 +4,7 @@
 // Plafond fixe 2 000 000 € — tarification par secteur + CA + effectif
 // ============================================================
 import { useState } from "react";
+import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Types ─────────────────────────────────────────────────────
 type Secteur = "conseil_info" | "commerce" | "artisan_btp" | "liberal" | "restauration" | "industrie";
@@ -94,6 +95,8 @@ export default function SimulateurRCPro() {
   const [effectif, setEffectif]   = useState(2);
   const [options, setOptions]     = useState<string[]>([]);
   const [onglet, setOnglet]       = useState<"tarif" | "garanties" | "cas">("tarif");
+  // Hook souscription — connecte le simulateur à la fiche assuré
+  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("rcpro");
 
   const data     = SECTEURS[secteur];
   const coeffCA  = getCoeffCA(ca);
@@ -416,6 +419,15 @@ export default function SimulateurRCPro() {
           })}
         </div>
       )}
+
+      {/* ── Souscription depuis fiche assuré ── */}
+      <BoutonSouscription
+        isFromFiche={isFromFiche}
+        client={client}
+        mode={mode}
+        primeAnnuelle={primeTTC}
+        onSouscrire={() => souscrire(primeTTC)}
+      />
     </div>
   );
 }

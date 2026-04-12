@@ -9,16 +9,19 @@
 // 10 000 km/an, formule tiers, permis A depuis 5 ans
 // Source : moyennes marché France Assureurs 2023
 export const PRIME_BASE_MOTO: Record<string, number> = {
-  scooter_50:    180,   // très faible risque, valeur faible
-  scooter_125:   280,   // usage urbain, vol fréquent
-  moto_125:      320,   // bonne sinistralité A1
-  moto_moyenne:  420,   // 126-500cc — profil intermédiaire
-  moto_500:      560,   // > 500cc accès progressif
-  moto_grosse:   720,   // > 500cc permis A — sinistralité élevée
-  moto_sportive: 980,   // sportive : sinistralité très élevée
-  moto_custom:   520,   // custom : usage loisir, sinistralité modérée
-  moto_trail:    580,   // trail : usage mixte
-  side_car:      640,   // side-car : profil spécifique
+  // Recalibré marché France 2025 — profil réf : 35 ans, CRM 1.00, zone3,
+  // quotidien, 10 000 km/an, formule tiers, permis A (référence = 1.00)
+  // Source : comparateur assurance moto 2025, moyennes pondérées
+  scooter_50:    115,   // très faible risque, valeur faible
+  scooter_125:   180,   // usage urbain, vol fréquent
+  moto_125:      205,   // bonne sinistralité A1
+  moto_moyenne:  275,   // 126-500cc — profil intermédiaire
+  moto_500:      365,   // > 500cc accès progressif
+  moto_grosse:   465,   // > 500cc permis A — sinistralité élevée
+  moto_sportive: 640,   // sportive : sinistralité très élevée
+  moto_custom:   340,   // custom : usage loisir, sinistralité modérée
+  moto_trail:    375,   // trail : usage mixte
+  side_car:      415,   // side-car : profil spécifique
 };
 
 // ── Coefficients âge conducteur moto ─────────────────────────
@@ -40,10 +43,12 @@ export const getCoefficientAgeMoto = (age: number, anneesPermis: number): number
 // ── Coefficients catégorie de permis ─────────────────────────
 // L'accès progressif A2 → A réduit la sinistralité
 export const COEFFICIENTS_PERMIS: Record<string, number> = {
-  AM: 0.85,  // cyclomoteur — faible puissance, faible risque
-  A1: 0.90,  // moto légère — profil débutant mais puissance limitée
-  A2: 1.00,  // référence — permis intermédiaire
-  A:  1.20,  // toutes motos — accès à haute puissance
+  // Permis A = référence (1.00) car base calibrée sur ce profil
+  // Les autres formules sont des réductions par rapport à A
+  AM: 0.70,  // cyclomoteur — puissance très limitée
+  A1: 0.78,  // moto légère — < 11 kW
+  A2: 0.88,  // accès progressif — < 35 kW
+  A:  1.00,  // toutes motos — référence
 };
 
 // Bonus accès progressif : A2 puis A après 2 ans
@@ -72,30 +77,34 @@ export const getCoefficientKmMoto = (km: number): number => {
 // ── Coefficients zone géographique ───────────────────────────
 // Moto : vol très concentré en zone 1 (Paris, Lyon, Marseille)
 export const COEFFICIENTS_ZONE_MOTO: Record<string, number> = {
-  zone1: 1.55,  // métropoles : vol × 3 vs zone rurale
-  zone2: 1.20,
+  // Recalibré — zone1 ajustée pour éviter les surcoûts excessifs en combinaison
+  zone1: 1.35,  // métropoles : vol élevé (Paris, Lyon, Marseille)
+  zone2: 1.15,
   zone3: 1.00,  // référence
-  zone4: 0.82,
+  zone4: 0.85,
 };
 
 // ── Coefficients cylindrée ───────────────────────────────────
 // La cylindrée est corrélée à la vitesse max et la gravité des accidents
 export const getCoefficientCylindree = (cc: number): number => {
-  if (cc <= 50)   return 0.70;  // cyclomoteur
-  if (cc <= 125)  return 0.85;  // 125cc
-  if (cc <= 300)  return 0.95;
-  if (cc <= 500)  return 1.00;  // référence
-  if (cc <= 750)  return 1.20;
-  if (cc <= 1000) return 1.45;
-  if (cc <= 1300) return 1.65;
-  return 1.85; // > 1300cc — gros cubes
+  // Coefficients réduits : la base PRIME_BASE_MOTO intègre déjà l'effet cylindrée.
+  // Ce coefficient affine uniquement l'écart interne à chaque catégorie.
+  if (cc <= 50)   return 0.80;  // cyclomoteur
+  if (cc <= 125)  return 0.88;  // 125cc
+  if (cc <= 300)  return 0.94;
+  if (cc <= 500)  return 1.00;  // référence (moto_moyenne)
+  if (cc <= 750)  return 1.08;  // légère surcharge
+  if (cc <= 1000) return 1.18;
+  if (cc <= 1300) return 1.30;
+  return 1.42; // > 1300cc — gros cubes
 };
 
 // ── Coefficients formule ─────────────────────────────────────
 export const COEFFICIENTS_FORMULE_MOTO: Record<string, number> = {
+  // Recalibré marché 2025
   tiers:        1.00,
-  tiers_plus:   1.55,  // vol très important en moto → plus cher qu'auto
-  tous_risques: 2.30,
+  tiers_plus:   1.50,  // vol important en moto → surcharge modérée
+  tous_risques: 2.00,  // DTA + vol + protection conducteur
 };
 
 // ── Coefficient garage fermée ─────────────────────────────────
