@@ -34,11 +34,11 @@ export default function AuthCallback() {
 
     // Écouter aussi l'établissement de session (traitement asynchrone)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
+      // SIGNED_IN = invitation acceptée
+      // PASSWORD_RECOVERY = lien "mot de passe oublié" cliqué
+      if ((event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") && session) {
         setEmail(session.user?.email ?? "");
         setStep("set_password");
-      } else if (event === "USER_UPDATED") {
-        // Le mot de passe a été défini → redirection gérée par handleSetPassword
       } else if (event === "SIGNED_OUT") {
         setStep("error");
       }
