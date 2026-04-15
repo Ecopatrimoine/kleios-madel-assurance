@@ -51,6 +51,7 @@ export default function SimulateurMoto() {
   const [bmErreur, setBmErreur]     = useState<string | null>(null);
   const [resultat, setResultat]     = useState<ResultatSimulateurMoto | null>(null);
   const [onglet, setOnglet]         = useState<"resume" | "detail" | "garanties">("resume");
+  const [lieuStationnement, setLieuStationnement] = useState<"rue" | "parking_public" | "parking_prive" | "garage_ferme">("parking_prive");
   // Hook souscription — connecte le simulateur à la fiche assuré
   const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("moto");
 
@@ -77,6 +78,19 @@ export default function SimulateurMoto() {
 
   const setField = <K extends keyof SimulateurMotoInput>(k: K, v: SimulateurMotoInput[K]) => {
     setInput(prev => ({ ...prev, [k]: v }));
+    setResultat(null);
+  };
+
+  const COEFF_STATIONNEMENT_MOTO: Record<string, { coeff: number; garage: boolean }> = {
+    rue:            { coeff: 1.20, garage: false },  // +20% — vol très exposé
+    parking_public: { coeff: 1.10, garage: false },  // +10% — couvert mais non sécurisé
+    parking_prive:  { coeff: 1.00, garage: false },  // référence
+    garage_ferme:   { coeff: 0.88, garage: true  },  // −12% — calcul.ts applique COEFFICIENT_GARAGE_FERME
+  };
+
+  const handleLieuStationnement = (lieu: typeof lieuStationnement) => {
+    setLieuStationnement(lieu);
+    setField("garageeFermee", COEFF_STATIONNEMENT_MOTO[lieu].garage);
     setResultat(null);
   };
 
@@ -204,25 +218,28 @@ export default function SimulateurMoto() {
             <Champ label="Année mise en circulation">
               <Input type="number" value={input.anneeMiseEnCirculation} onChange={v => setField("anneeMiseEnCirculation", +v)} min={1970} max={ANNEE} />
             </Champ>
-            <Champ label="Garage fermé ?">
-              <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: "1.5px solid var(--madel-border)" }}>
-                {[{ v: false, l: "Non" }, { v: true, l: "Oui — box / garage" }].map(opt => (
-                  <button key={String(opt.v)} onClick={() => setField("garageeFermee", opt.v)} style={{
-                    flex: 1, padding: "7px 6px", border: "none", fontSize: 11,
-                    background: input.garageeFermee === opt.v
-                      ? opt.v ? "var(--madel-success-bg)" : "var(--madel-bg)"
-                      : "#fff",
-                    color: input.garageeFermee === opt.v
-                      ? opt.v ? "var(--madel-success)" : "var(--madel-text)"
-                      : "var(--madel-muted)",
-                    fontWeight: input.garageeFermee === opt.v ? 700 : 400,
-                    cursor: "pointer", fontFamily: "var(--madel-font)",
-                  }}>{opt.l}</button>
+            <Champ label="Lieu de stationnement habituel">
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 2 }}>
+                {([
+                  { v: "rue",            icone: "🛣️", label: "Rue / espace public",      impact: "+20% vol",   couleur: "#DC2626", bg: "#FEF2F2" },
+                  { v: "parking_public", icone: "🏢", label: "Parking public couvert",    impact: "+10% vol",   couleur: "#D97706", bg: "#FFFBEB" },
+                  { v: "parking_prive",  icone: "🔑", label: "Parking privé / résidence", impact: "Référence",  couleur: "#059669", bg: "#F0FDF4" },
+                  { v: "garage_ferme",   icone: "🔒", label: "Box / garage fermé",         impact: "−12% vol",   couleur: "#2563EB", bg: "#EFF6FF" },
+                ] as { v: typeof lieuStationnement; icone: string; label: string; impact: string; couleur: string; bg: string }[]).map(opt => (
+                  <button key={opt.v} onClick={() => handleLieuStationnement(opt.v)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "7px 10px", borderRadius: 8, width: "100%", textAlign: "left",
+                      border: `1.5px solid ${lieuStationnement === opt.v ? opt.couleur : "var(--madel-border)"}`,
+                      background: lieuStationnement === opt.v ? opt.bg : "#fff",
+                      cursor: "pointer", fontFamily: "var(--madel-font)", transition: "all .12s",
+                    }}>
+                    <span style={{ fontSize: 13, flexShrink: 0 }}>{opt.icone}</span>
+                    <span style={{ flex: 1, fontSize: 10, fontWeight: lieuStationnement === opt.v ? 700 : 400, color: lieuStationnement === opt.v ? opt.couleur : "var(--madel-navy)" }}>{opt.label}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 8, background: lieuStationnement === opt.v ? opt.couleur : "var(--madel-border)", color: lieuStationnement === opt.v ? "#fff" : "var(--madel-muted)" }}>{opt.impact}</span>
+                  </button>
                 ))}
               </div>
-              {input.garageeFermee && (
-                <div style={{ fontSize: 9, color: "var(--madel-success)", marginTop: 3 }}>✅ Réduction −12% appliquée</div>
-              )}
             </Champ>
           </div>
         </Card>

@@ -147,8 +147,18 @@ export default function SimulateurMRH() {
 
   // Géorisques
   const [risqueGeo, setRisqueGeo] = useState<RisqueGeo | null>(null);
+  // ── Extérieur (state local — hors SimulateurMRHInput) ───────
+  const [aExterieur, setAExterieur]       = useState(false);
+  const [surfaceExt, setSurfaceExt]       = useState(50);
+  const [extItems, setExtItems]           = useState<string[]>([]);
+
+  const toggleExtItem = (item: string) => {
+    setExtItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]);
+    setResultat(null);
+  };
+
   // Hook souscription — connecte le simulateur à la fiche assuré
-  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("mrh");
+  const { client, clientZone, mode, isFromFiche, souscrire } = useSimulateurSouscription("mrh");
 
   // Chargement assuré depuis URL
   useEffect(() => {
@@ -168,6 +178,14 @@ export default function SimulateurMRH() {
     };
     charger();
   }, [searchParams, user]);
+
+  // Pré-remplir la zone depuis le code postal du client (Zustand store)
+  useEffect(() => {
+    if (clientZone) {
+      setField("zoneGeographique", clientZone);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientZone]);
 
   // Debounce recherche adresse
   useEffect(() => {
@@ -506,6 +524,82 @@ export default function SimulateurMRH() {
             </div>
           </Card>
 
+          <Card titre="Espaces extérieurs" icone="🌿" couleur="rose">
+            <div style={{ marginBottom: 10 }}>
+              <label style={{
+                display: "flex", alignItems: "center", gap: 9, cursor: "pointer",
+                padding: "10px 12px", borderRadius: 9,
+                border: `2px solid ${aExterieur ? "var(--madel-rose)" : "var(--madel-border)"}`,
+                background: aExterieur ? "var(--madel-rose-light)" : "var(--madel-bg)",
+                transition: "all .15s",
+              }}>
+                <input type="checkbox" checked={aExterieur}
+                  onChange={e => { setAExterieur(e.target.checked); setResultat(null); }}
+                  style={{ accentColor: "var(--madel-rose)", flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--madel-navy)" }}>Logement avec extérieur</div>
+                  <div style={{ fontSize: 9, color: "var(--madel-muted)", marginTop: 1 }}>Jardin, terrasse, balcon — à déclarer</div>
+                </div>
+              </label>
+            </div>
+
+            {aExterieur && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {/* Surface extérieure */}
+                <Champ label="Surface extérieure (m²)">
+                  <Input type="number" value={surfaceExt}
+                    onChange={v => { setSurfaceExt(+v); setResultat(null); }}
+                    min={1} max={5000} step={10} />
+                  <Hint type="muted">Jardin + terrasse + balcon — +0,80 €/m²/an</Hint>
+                </Champ>
+
+                {/* Équipements extérieurs */}
+                <div style={{ fontSize: 9, fontWeight: 700, color: "var(--madel-muted)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 2 }}>
+                  Équipements présents
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  {([
+                    { id: "arbres",        icone: "🌳", label: "Arbres / haies",               desc: "Risque chute, tempête — à déclarer" },
+                    { id: "piscine",       icone: "🏊", label: "Piscine / spa",                 desc: "RC et dommages piscine" },
+                    { id: "barbecue",      icone: "🔥", label: "Barbecue / brasero",            desc: "Risque incendie" },
+                    { id: "construction",  icone: "🏚️", label: "Construction ext. (abri…)",    desc: "Dépendance, abri de jardin, garage" },
+                  ]).map(item => {
+                    const active = extItems.includes(item.id);
+                    return (
+                      <label key={item.id} style={{
+                        display: "flex", alignItems: "flex-start", gap: 7,
+                        padding: "8px 10px", borderRadius: 8, cursor: "pointer",
+                        border: `1.5px solid ${active ? "var(--madel-rose-mid)" : "var(--madel-border)"}`,
+                        background: active ? "var(--madel-rose-light)" : "#fff",
+                        transition: "all .15s",
+                      }}>
+                        <input type="checkbox" checked={active}
+                          onChange={() => toggleExtItem(item.id)}
+                          style={{ accentColor: "var(--madel-rose)", flexShrink: 0, marginTop: 2 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--madel-navy)" }}>
+                              {item.icone} {item.label}
+                            </div>
+
+                          </div>
+                          <div style={{ fontSize: 9, color: "var(--madel-muted)", marginTop: 1 }}>{item.desc}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {/* Récap déclaratif — sans impact tarifaire */}
+                {(aExterieur && (extItems.length > 0 || surfaceExt > 0)) && (
+                  <div style={{ padding: "8px 12px", borderRadius: 8, background: "var(--madel-blue-light)", border: "1px solid #B5D4F4", fontSize: 10, color: "var(--madel-info)", lineHeight: 1.5 }}>
+                    💡 Ces éléments justifient la garantie <strong>Équipements extérieurs</strong> — pensez à la cocher dans les options ci-dessous.
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+
           <Card titre="Options complémentaires" icone="🛡️" couleur="rose">
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {GARANTIES_OPTIONS_MRH.map(opt => {
@@ -573,7 +667,7 @@ export default function SimulateurMRH() {
         client={client}
         mode={mode}
         primeAnnuelle={resultat?.primeAnnuelle ?? null}
-        onSouscrire={() => souscrire(resultat!.primeAnnuelle)}
+        onSouscrire={() => souscrire(resultat!.primeAnnuelle, { ...input, exterieur: { surface: surfaceExt, items: extItems } })}
       />
     </div>
   );

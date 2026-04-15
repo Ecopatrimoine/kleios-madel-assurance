@@ -7,9 +7,9 @@
 // ── Prime de base ─────────────────────────────────────────────
 // Base : locataire, appartement, 50m², 3 pièces, zone3,
 // résidence principale, 15 000€ mobilier, sans alarme
-export const PRIME_BASE_MRH = 135; // €/an
+export const PRIME_BASE_MRH = 105; // €/an
 // Recalibré marché France 2025 — source : comparateurs assurance habitation
-// Profil réf. (appart 50m², locataire, zone3, mobilier 15k) → ~171€/an TTC (vs 226€ avant)
+// Profil réf. (appart 50m², locataire, zone3, mobilier 15k) → ~130€/an TTC
 
 // ── Coefficient surface ───────────────────────────────────────
 // La surface impacte la prime via les plafonds de garantie

@@ -3,7 +3,6 @@
 // Kleios Madel Assurance · BTS Assurance
 // ============================================================
 import { useState } from "react";
-import { useSimulateurSouscription, BoutonSouscription } from "../../hooks/useSimulateurSouscription";
 
 // ── Types ─────────────────────────────────────────────────────
 type FormuleScolaire = "essentielle" | "confort" | "integrale";
@@ -15,7 +14,7 @@ const FORMULES = {
     icone: "📚",
     couleur: "#F5B731",
     desc: "Protection de base — accidents scolaires",
-    tarif: 25,
+    tarif: 17,
     garanties: [
       { nom: "Accidents corporels en milieu scolaire", inclus: true, desc: "Accidents survenus dans l'enceinte de l'école, lors d'activités organisées et sur le trajet domicile-école." },
       { nom: "RC Vie Privée", inclus: true, desc: "Dommages causés à autrui dans le cadre de la vie privée et scolaire de l'enfant." },
@@ -32,7 +31,7 @@ const FORMULES = {
     icone: "⭐",
     couleur: "#E8722A",
     desc: "Scolaire + sport + loisirs",
-    tarif: 45,
+    tarif: 31,
     garanties: [
       { nom: "Accidents corporels en milieu scolaire", inclus: true, desc: "Accidents survenus dans l'enceinte de l'école, lors d'activités organisées et sur le trajet domicile-école." },
       { nom: "RC Vie Privée", inclus: true, desc: "Dommages causés à autrui dans le cadre de la vie privée et scolaire de l'enfant." },
@@ -49,7 +48,7 @@ const FORMULES = {
     icone: "🏆",
     couleur: "#4A8FD4",
     desc: "Couverture totale",
-    tarif: 65,
+    tarif: 45,
     garanties: [
       { nom: "Accidents corporels en milieu scolaire", inclus: true, desc: "Accidents survenus dans l'enceinte de l'école, lors d'activités organisées et sur le trajet domicile-école." },
       { nom: "RC Vie Privée", inclus: true, desc: "Dommages causés à autrui dans le cadre de la vie privée et scolaire de l'enfant." },
@@ -65,9 +64,9 @@ const FORMULES = {
 
 // ── Plafonds de garantie ──────────────────────────────────────
 const PLAFONDS = {
-  essentielle: { ipp: 75000, fraisMedicaux: 7500, rc: "Illimitée (corporel) / 750 000 €", deces: 15000, objets: 0, brisLunettes: 0 },
-  confort:     { ipp: 150000, fraisMedicaux: 15000, rc: "Illimitée (corporel) / 1 500 000 €", deces: 20000, objets: 0, brisLunettes: 0 },
-  integrale:   { ipp: 200000, fraisMedicaux: 20000, rc: "Illimitée (corporel) / 2 000 000 €", deces: 25000, objets: 500, brisLunettes: 250 },
+  essentielle: { ipp: 375000, fraisMedicaux: 7500, rc: "Illimitée (corporel) / 750 000 €", deces: 15000, objets: 0, brisLunettes: 0 },
+  confort:     { ipp: 750000, fraisMedicaux: 15000, rc: "Illimitée (corporel) / 1 500 000 €", deces: 20000, objets: 0, brisLunettes: 0 },
+  integrale:   { ipp: 1000000, fraisMedicaux: 20000, rc: "Illimitée (corporel) / 2 000 000 €", deces: 25000, objets: 500, brisLunettes: 250 },
 };
 
 // ── Réduction multienfants ────────────────────────────────────
@@ -85,8 +84,6 @@ const eur = (n: number) =>
 export default function SimulateurScolaire() {
   const [formule, setFormule]     = useState<FormuleScolaire>("confort");
   const [nbEnfants, setNbEnfants] = useState(1);
-  // Hook souscription — connecte le simulateur à la fiche assuré
-  const { client, mode, isFromFiche, souscrire } = useSimulateurSouscription("scolaire");
 
   const data      = FORMULES[formule];
   const plafonds  = PLAFONDS[formule];
@@ -255,15 +252,6 @@ export default function SimulateurScolaire() {
         Cependant, elle est fortement recommandée car la RC des parents couvre les dommages causés aux tiers, mais pas les dommages subis par l'enfant lui-même.
         La formule Intégrale est particulièrement pertinente pour les enfants pratiquant un sport en club en dehors de l'école.
       </div>
-
-      {/* ── Souscription depuis fiche assuré ── */}
-      <BoutonSouscription
-        isFromFiche={isFromFiche}
-        client={client}
-        mode={mode}
-        primeAnnuelle={primeTTC}
-        onSouscrire={() => souscrire(primeTTC)}
-      />
     </div>
   );
 }

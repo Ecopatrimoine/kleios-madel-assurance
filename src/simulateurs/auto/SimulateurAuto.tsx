@@ -39,34 +39,53 @@ export default function SimulateurAuto() {
   const [antecedents, setAntecedents] = useState<DonneesAntecedents | null>(null);
   const [resultat, setResultat]   = useState<ResultatSimulateurAuto | null>(null);
   const [onglet, setOnglet]       = useState<"resume" | "detail" | "garanties">("resume");
+  const [lieuStationnement, setLieuStationnement] = useState<"rue" | "parking_public" | "parking_prive" | "garage_ferme">("parking_prive");
 
   // Hook souscription — connecte le simulateur à la fiche assuré
-  const { client, clientAge, ancienContrat, mode, isFromFiche, souscrire } = useSimulateurSouscription("auto");
+  const { client, clientAge, clientZone, ancienContrat, mode, isFromFiche, souscrire } = useSimulateurSouscription("auto");
 
   // Pré-remplissage depuis le client et l'ancien contrat
   useEffect(() => {
     if (!isFromFiche) return;
-    const d = ancienContrat?.details as (Partial<SimulateurAutoInput> & { datePermis?: string }) | undefined;
+    // "bonus" = champ des contrats démo  |  "bonusMalus" = champ des contrats créés par le simulateur
+    const d = ancienContrat?.details as (Partial<SimulateurAutoInput> & { datePermis?: string; bonus?: number }) | undefined;
+    const bonusValue = d?.bonusMalus ?? d?.bonus;
 
     setInput(prev => ({
       ...prev,
       ...(clientAge !== undefined && { agePrincipal: clientAge }),
-      ...(d?.bonusMalus             !== undefined && { bonusMalus:             d.bonusMalus }),
+      ...(bonusValue !== undefined && { bonusMalus: bonusValue }),
       ...(d?.typeVehicule            !== undefined && { typeVehicule:            d.typeVehicule }),
       ...(d?.puissanceFiscale        !== undefined && { puissanceFiscale:        d.puissanceFiscale }),
       ...(d?.valeurVehicule          !== undefined && { valeurVehicule:          d.valeurVehicule }),
       ...(d?.anneeMiseEnCirculation  !== undefined && { anneeMiseEnCirculation:  d.anneeMiseEnCirculation }),
       ...(d?.usagePrincipal          !== undefined && { usagePrincipal:          d.usagePrincipal }),
       ...(d?.kmAnnuels               !== undefined && { kmAnnuels:               d.kmAnnuels }),
-      ...(d?.zoneGeographique        !== undefined && { zoneGeographique:        d.zoneGeographique }),
+      ...(d?.zoneGeographique        !== undefined ? { zoneGeographique: d.zoneGeographique }
+          : clientZone               !== undefined ? { zoneGeographique: clientZone } : {}),
       ...(d?.formule                 !== undefined && { formule:                 d.formule }),
       ...(d?.options                 !== undefined && { options:                 d.options }),
+      // Années de permis dérivées soit de la date sauvegardée soit de l'âge client
+      ...(d?.datePermis !== undefined
+          ? { anneesPermis: Math.max(0, ANNEE - new Date(d.datePermis).getFullYear()) }
+          : clientAge !== undefined
+          ? { anneesPermis: Math.max(0, clientAge - 19) }
+          : {}),
     }));
-    if (d?.datePermis) setDatePermis(d.datePermis);
-    if (d?.bonusMalus !== undefined) setBmTexte(String(d.bonusMalus));
+
+    if (d?.datePermis) {
+      // Remplacement : réutiliser la date de permis du contrat précédent
+      setDatePermis(d.datePermis);
+    } else if (clientAge !== undefined) {
+      // Nouveau contrat : dériver la date depuis l'âge réel du client (19 ans + mois aléatoire)
+      const moisAlea = String(Math.floor(Math.random() * 11) + 1).padStart(2, "0");
+      setDatePermis(`${ANNEE - clientAge + 19}-${moisAlea}-15`);
+    }
+
+    if (bonusValue !== undefined) setBmTexte(String(bonusValue));
     setResultat(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFromFiche, clientAge, ancienContrat?.id]);
+  }, [isFromFiche, clientAge, clientZone, ancienContrat?.id]);
 
   // Connexion plaque → formulaire
   const handleVehiculeCharge = useCallback((v: VehiculeDB) => {
@@ -115,9 +134,21 @@ export default function SimulateurAuto() {
     else if (!on && vehicule) setField("valeurVehicule", vehicule.valeurEstimee);
   };
 
+  const COEFF_STATIONNEMENT_AUTO: Record<string, number> = {
+    rue:            1.15,  // +15% — exposition vol maximale
+    parking_public: 1.08,  // +8%  — couvert mais public
+    parking_prive:  1.00,  // référence — parking résidence/entreprise
+    garage_ferme:   0.93,  // −7%  — risque vol très faible
+  };
+
   const handleCalculer = () => {
     if (bmErreur) return;
-    setResultat(calculerPrimeAuto(input));
+    const res = calculerPrimeAuto(input);
+    const coeff = COEFF_STATIONNEMENT_AUTO[lieuStationnement] ?? 1.00;
+    // Appliquer le coefficient stationnement sur la prime finale
+    const primeAjustee = Math.round(res.primeAnnuelle * coeff * 100) / 100;
+    const mensuelleAjustee = Math.round(primeAjustee / 12 * 100) / 100;
+    setResultat({ ...res, primeAnnuelle: primeAjustee, primeMensuelle: mensuelleAjustee });
     setOnglet("resume");
   };
 
@@ -295,6 +326,34 @@ export default function SimulateurAuto() {
                     <div style={{ fontSize: 12, fontWeight: input.formule === f.v ? 700 : 500, color: input.formule === f.v ? "var(--madel-rose-dark)" : "var(--madel-navy)" }}>{f.titre}</div>
                     <div style={{ fontSize: 10, color: input.formule === f.v ? "var(--madel-rose)" : "var(--madel-muted)", marginTop: 1 }}>{f.sub}</div>
                   </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lieu de stationnement */}
+          <div>
+            <Label>Lieu de stationnement habituel</Label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+              {([
+                { v: "rue",            icone: "🅿️", label: "Rue / espace public",       impact: "+15% vol",   couleur: "#DC2626", bg: "#FEF2F2" },
+                { v: "parking_public", icone: "🏢", label: "Parking public couvert",     impact: "+8% vol",    couleur: "#D97706", bg: "#FFFBEB" },
+                { v: "parking_prive",  icone: "🔑", label: "Parking privé / résidence",  impact: "Référence",  couleur: "#059669", bg: "#F0FDF4" },
+                { v: "garage_ferme",   icone: "🔒", label: "Box / garage fermé",          impact: "−7% vol",    couleur: "#2563EB", bg: "#EFF6FF" },
+              ] as { v: typeof lieuStationnement; icone: string; label: string; impact: string; couleur: string; bg: string }[]).map(opt => (
+                <button key={opt.v} onClick={() => { setLieuStationnement(opt.v); setResultat(null); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 12px", borderRadius: 9, textAlign: "left", width: "100%",
+                    border: `2px solid ${lieuStationnement === opt.v ? opt.couleur : "var(--madel-border)"}`,
+                    background: lieuStationnement === opt.v ? opt.bg : "#fff",
+                    cursor: "pointer", fontFamily: "var(--madel-font)", transition: "all .15s",
+                  }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{opt.icone}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: lieuStationnement === opt.v ? 700 : 500, color: lieuStationnement === opt.v ? opt.couleur : "var(--madel-navy)" }}>{opt.label}</div>
+                  </div>
+                  <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 10, background: lieuStationnement === opt.v ? opt.couleur : "var(--madel-border)", color: lieuStationnement === opt.v ? "#fff" : "var(--madel-muted)" }}>{opt.impact}</span>
                 </button>
               ))}
             </div>
@@ -548,7 +607,7 @@ export default function SimulateurAuto() {
         client={client}
         mode={mode}
         primeAnnuelle={resultat?.primeAnnuelle ?? null}
-        onSouscrire={() => souscrire(resultat!.primeAnnuelle, { ...input, datePermis })}
+        onSouscrire={() => souscrire(resultat!.primeAnnuelle, { ...input, datePermis, lieuStationnement })}
       />
     </div>
   );

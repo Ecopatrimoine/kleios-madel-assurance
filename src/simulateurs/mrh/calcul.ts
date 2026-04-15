@@ -31,7 +31,7 @@ import {
 
 // ── Paramètres pédagogiques ───────────────────────────────────
 export const PARAMS_MRH = {
-  marge_commerciale: 1.12,
+  marge_commerciale: 1.08,  // recalibré — MRH marché peu margé
 };
 
 const arr = (n: number, d = 2) => Math.round(n * 10 ** d) / 10 ** d;

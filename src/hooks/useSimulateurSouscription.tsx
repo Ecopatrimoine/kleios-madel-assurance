@@ -8,6 +8,21 @@ import { useClientsStore } from "../store/clientsStore";
 import { TYPE_LABELS } from "../data/types-clients";
 import type { TypeContrat, ContratDemo } from "../data/types-clients";
 
+// ── Utilitaire : code postal → zone tarifaire ────────────────
+// Identique à la logique de SimulateurMRH (recherche adresse BAN)
+export function cpVersZone(codePostal: string): "zone1" | "zone2" | "zone3" | "zone4" {
+  const dept = parseInt(codePostal.slice(0, 2));
+  // Zone 1 — grandes métropoles (sinistralité vol élevée)
+  if ([75, 92, 93, 94, 13, 69, 31, 33, 59, 67, 6].includes(dept)) return "zone1";
+  // Zone 2 — villes moyennes et agglomérations
+  if ([77, 78, 91, 95, 34, 44, 38, 76, 57, 83, 35, 25, 37, 45, 51].includes(dept)) return "zone2";
+  // Zone 4 — rural (faible densité)
+  if (dept >= 1 && dept <= 19) return "zone4";
+  if ([23, 36, 46, 48, 55, 58, 61, 63, 70, 71, 87, 88].includes(dept)) return "zone4";
+  // Zone 3 — périurbain (référence)
+  return "zone3";
+}
+
 // ── Hook principal ────────────────────────────────────────────
 export function useSimulateurSouscription(type: TypeContrat) {
   const [searchParams] = useSearchParams();
@@ -28,6 +43,12 @@ export function useSimulateurSouscription(type: TypeContrat) {
   // Âge du client calculé depuis sa date de naissance
   const clientAge = client
     ? new Date().getFullYear() - new Date(client.dateNaissance).getFullYear()
+    : undefined;
+
+  // Zone géographique déduite du code postal du client
+  // Utilisée pour pré-remplir automatiquement la zone dans tous les simulateurs
+  const clientZone: "zone1" | "zone2" | "zone3" | "zone4" | undefined = client
+    ? cpVersZone(client.codePostal)
     : undefined;
 
   const souscrire = (primeAnnuelle: number, details: Record<string, unknown> = {}) => {
@@ -54,7 +75,7 @@ export function useSimulateurSouscription(type: TypeContrat) {
     navigate(`/assures/${clientId}`);
   };
 
-  return { client, clientAge, ancienContrat, mode, isFromFiche, souscrire };
+  return { client, clientAge, clientZone, ancienContrat, mode, isFromFiche, souscrire };
 }
 
 // ── Composant BoutonSouscription ─────────────────────────────
